@@ -20,7 +20,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold text-earth-900">E-Posta</h3>
-                  <p className="text-earth-600">destek@tarimkayit.com</p>
+                  <p className="text-earth-600">sukrubas1905@gmail.com</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
