@@ -65,7 +65,7 @@ export default function PublicLayout() {
           </div>
         </div>
         <div className="border-t border-earth-100 pt-8">
-          <p className="font-medium text-earth-700">TarımKayıt © {new Date().getFullYear()} Tüm Hakları Saklıdır.</p>
+          <p className="font-medium text-earth-700">TarımKayıt © {new Date().getFullYear()} Bütün hakları Şükrü Baş'a aittir.</p>
         </div>
       </footer>
     </div>

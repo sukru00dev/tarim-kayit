@@ -29,7 +29,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold text-earth-900">Telefon</h3>
-                  <p className="text-earth-600">+90 (850) 123 45 67</p>
+                  <p className="text-earth-600">0545 882 26 70</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
