@@ -90,8 +90,9 @@ export default function Analytics() {
           </button>
           <h1 className="text-2xl font-bold text-earth-900">Karar Destek Analizi</h1>
           <p className="mt-1 text-earth-600">
-          Ziraat bilgisine dayalı kural tabanlı öneriler ve sezon karşılaştırması
-        </p>
+            Ziraat bilgisine dayalı kural tabanlı öneriler ve sezon karşılaştırması
+          </p>
+        </div>
       </div>
 
       <div className="mb-8 grid gap-6">
