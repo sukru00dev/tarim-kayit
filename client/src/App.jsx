@@ -1,0 +1,67 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext.jsx';
+import PublicLayout from './components/PublicLayout.jsx';
+import Landing from './pages/Landing.jsx';
+import Features from './pages/Features.jsx';
+import Pricing from './pages/Pricing.jsx';
+import Contact from './pages/Contact.jsx';
+import Login from './pages/Login.jsx';
+import Layout from './components/Layout.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import Fields from './pages/Fields.jsx';
+import Seasons from './pages/Seasons.jsx';
+import SeasonForm from './pages/SeasonForm.jsx';
+import Analytics from './pages/Analytics.jsx';
+import Report from './pages/Report.jsx';
+import Admin from './pages/Admin.jsx';
+function PrivateRoute({ children, adminOnly = false }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && user.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/features" element={<Features />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/contact" element={<Contact />} />
+      </Route>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <PrivateRoute>
+            <Layout />
+          </PrivateRoute>
+        }
+      >
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/fields" element={<Fields />} />
+        <Route path="/seasons" element={<Seasons />} />
+        <Route path="/seasons/new" element={<SeasonForm />} />
+        <Route path="/seasons/:id/edit" element={<SeasonForm />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/report" element={<Report />} />
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute adminOnly>
+              <Admin />
+            </PrivateRoute>
+          }
+        />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
