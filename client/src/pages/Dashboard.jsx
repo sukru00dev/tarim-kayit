@@ -69,12 +69,13 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard title="Toplam Tarla" value={summary.fieldCount} icon="🌾" />
-        <KpiCard title="Toplam Alan" value={`${summary.totalAreaDecare} dekar`} icon="📐" />
-        <KpiCard title="Toplam Tarla Maliyeti" value={formatCurrency(summary.totalCost)} icon="💰" />
+        <KpiCard title="Toplam Maliyet" value={formatCurrency(summary.totalCost)} icon="💸" />
+        <KpiCard title="Toplam Gelir" value={formatCurrency(summary.totalIncome)} icon="💰" />
+        <KpiCard title="Net Kar / Zarar" value={formatCurrency(summary.totalNetProfit)} icon={summary.totalNetProfit >= 0 ? "📈" : "📉"} />
         <KpiCard
-          title="Yıllık Demirbaş Amortismanı"
+          title="Yıllık Amortisman"
           value={formatCurrency(summary.totalAnnualDepreciation)}
           subtitle="Tüm traktör ve ekipman yıpranma payı"
           icon="🚜"

@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Fields from './pages/Fields.jsx';
 import Seasons from './pages/Seasons.jsx';
 import SeasonForm from './pages/SeasonForm.jsx';
+import Income from './pages/Income.jsx';
 import Analytics from './pages/Analytics.jsx';
 import Report from './pages/Report.jsx';
 import Admin from './pages/Admin.jsx';
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/seasons" element={<Seasons />} />
         <Route path="/seasons/new" element={<SeasonForm />} />
         <Route path="/seasons/:id/edit" element={<SeasonForm />} />
+        <Route path="/income" element={<Income />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/assets" element={<Assets />} />
         <Route path="/report" element={<Report />} />

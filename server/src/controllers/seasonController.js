@@ -65,6 +65,10 @@ export const createSeason = asyncHandler(async (req, res) => {
     inputs: normalizedInputs,
     totalCost,
     costPerDecare,
+    harvestQuantity: 0,
+    unitSalePrice: 0,
+    totalIncome: 0,
+    netProfit: -totalCost, // Başlangıçta gelir olmadığı için net kar eksidir
     notes: notes || '',
   });
   const populated = await season.populate('fieldId', 'fieldName cropType areaDecare');
@@ -80,7 +84,7 @@ export const updateSeason = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, error: 'Bu kayda erişim yok' });
   }
   const field = await Field.findById(season.fieldId);
-  const { year, seasonPeriod, inputs, notes } = req.body;
+  const { year, seasonPeriod, inputs, notes, harvestQuantity, unitSalePrice } = req.body;
   if (year) season.year = year;
   if (seasonPeriod) {
     if (!SEASON_PERIODS.includes(seasonPeriod)) {
@@ -97,6 +101,14 @@ export const updateSeason = asyncHandler(async (req, res) => {
     season.totalCost = totalCost;
     season.costPerDecare = costPerDecare;
   }
+  
+  if (harvestQuantity !== undefined) season.harvestQuantity = Number(harvestQuantity) || 0;
+  if (unitSalePrice !== undefined) season.unitSalePrice = Number(unitSalePrice) || 0;
+  
+  // Gelir ve Kar Hesaplaması
+  season.totalIncome = season.harvestQuantity * season.unitSalePrice;
+  season.netProfit = season.totalIncome - season.totalCost;
+
   if (notes !== undefined) season.notes = notes;
   season.seasonLabel = buildSeasonLabel(season.year, season.seasonPeriod);
   await season.save();

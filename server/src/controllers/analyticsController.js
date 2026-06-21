@@ -17,6 +17,8 @@ export const dashboard = asyncHandler(async (req, res) => {
     .sort({ year: -1, seasonPeriod: -1 });
 
   const totalCost = seasons.reduce((s, r) => s + r.totalCost, 0);
+  const totalIncome = seasons.reduce((s, r) => s + (r.totalIncome || 0), 0);
+  const totalNetProfit = seasons.reduce((s, r) => s + (r.netProfit || -r.totalCost), 0);
   const totalArea = fields.reduce((s, f) => s + f.areaDecare, 0);
   const avgCostPerDecare = totalArea > 0 ? Math.round((totalCost / totalArea) * 100) / 100 : 0;
 
@@ -37,6 +39,8 @@ export const dashboard = asyncHandler(async (req, res) => {
     .map((s) => ({
       label: s.seasonLabel,
       totalCost: s.totalCost,
+      totalIncome: s.totalIncome || 0,
+      netProfit: s.netProfit || -s.totalCost,
       costPerDecare: s.costPerDecare,
       fieldName: s.fieldId.fieldName,
     }));
@@ -48,6 +52,8 @@ export const dashboard = asyncHandler(async (req, res) => {
         fieldCount: fields.length,
         seasonCount: seasons.length,
         totalCost: Math.round(totalCost * 100) / 100,
+        totalIncome: Math.round(totalIncome * 100) / 100,
+        totalNetProfit: Math.round(totalNetProfit * 100) / 100,
         totalAreaDecare: totalArea,
         avgCostPerDecare,
         totalAnnualDepreciation: Math.round(totalAnnualDepreciation * 100) / 100,

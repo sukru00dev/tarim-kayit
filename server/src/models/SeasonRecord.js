@@ -52,6 +52,12 @@ const seasonRecordSchema = new mongoose.Schema(
     totalCost: { type: Number, required: true, min: 0, default: 0 },
     costPerDecare: { type: Number, required: true, min: 0, default: 0 },
     notes: { type: String, trim: true, default: '' },
+    
+    // Yeni Eklenen Gelir ve Hasat Alanları
+    harvestQuantity: { type: Number, min: 0, default: 0 }, // Örn: kg cinsinden hasat miktarı
+    unitSalePrice: { type: Number, min: 0, default: 0 }, // Örn: kg başı satış fiyatı (TL)
+    totalIncome: { type: Number, min: 0, default: 0 }, // harvestQuantity * unitSalePrice
+    netProfit: { type: Number, default: 0 }, // totalIncome - totalCost
   },
   { timestamps: true }
 );
