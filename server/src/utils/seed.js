@@ -12,12 +12,14 @@ async function seed() {
   await mongoose.connect(MONGODB_URI);
   console.log('Seed: MongoDB bağlandı');
 
-  await Promise.all([
-    User.deleteMany({}),
-    Field.deleteMany({}),
-    SeasonRecord.deleteMany({}),
-    Benchmark.deleteMany({}),
-  ]);
+  // Üretim ortamında kazara veri silinmesini önlemek için deleteMany işlemleri kaldırıldı.
+  // Sadece eksik veriler eklenecek.
+  const existingAdmin = await User.findOne({ username: 'admin' });
+  if (existingAdmin) {
+    console.log('Admin kullanıcısı zaten mevcut, seed işlemi atlanıyor.');
+    await mongoose.disconnect();
+    return;
+  }
 
   const adminHash = await User.hashPassword('admin123');
   const farmerHash = await User.hashPassword('ciftci123');
