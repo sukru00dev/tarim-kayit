@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "tarim-kayit-api",
+      name: "tarimkayit",
       script: "./server/src/index.js",
       env: {
         NODE_ENV: "production",
