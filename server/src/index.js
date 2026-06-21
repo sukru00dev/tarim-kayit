@@ -47,13 +47,20 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-if (process.env.NODE_ENV === 'production') {
+import fs from 'fs';
+
+const clientDistPath = path.join(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
   // Serve frontend static files
-  app.use(express.static(path.join(__dirname, '../../client/dist')));
+  app.use(express.static(clientDistPath));
 
   // Catch-all to serve index.html for React Router
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+} else {
+  app.get('*', (req, res) => {
+    res.status(404).send('Frontend build (client/dist) bulunamadı. Lütfen "npm run build" çalıştırın.');
   });
 }
 async function start() {
