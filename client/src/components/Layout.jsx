@@ -4,8 +4,9 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 const navItems = [
   { to: '/dashboard', label: 'Gösterge Paneli', icon: '📊' },
+  { to: '/calendar', label: 'Takvim ve Görevler', icon: '📅' },
   { to: '/fields', label: 'Tarlalarım', icon: '🌾' },
-  { to: '/seasons', label: 'Sezon Kayıtları', icon: '📅' },
+  { to: '/seasons', label: 'Sezon Kayıtları', icon: '📝' },
   { to: '/income', label: 'Gelir ve Hasat', icon: '💰' },
   { to: '/inventory', label: 'Depo ve Envanter', icon: '📦' },
   { to: '/assets', label: 'Demirbaşlarım', icon: '🚜' },

@@ -13,6 +13,7 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import benchmarkRoutes from './routes/benchmarkRoutes.js';
 import assetRoutes from './routes/assetRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
+import taskRoutes from './routes/taskRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/benchmarks', benchmarkRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/tasks', taskRoutes);
 
 app.use(errorHandler);
 

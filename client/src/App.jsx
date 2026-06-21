@@ -8,6 +8,7 @@ import Contact from './pages/Contact.jsx';
 import Login from './pages/Login.jsx';
 import Layout from './components/Layout.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Calendar from './pages/Calendar.jsx';
 import Fields from './pages/Fields.jsx';
 import Seasons from './pages/Seasons.jsx';
 import SeasonForm from './pages/SeasonForm.jsx';
@@ -54,6 +55,7 @@ export default function App() {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/calendar" element={<Calendar />} />
         <Route path="/fields" element={<Fields />} />
         <Route path="/seasons" element={<Seasons />} />
         <Route path="/seasons/new" element={<SeasonForm />} />

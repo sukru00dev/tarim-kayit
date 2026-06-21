@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import api from '../api/client.js';
 import KpiCard, { InsightCard, EmptyState } from '../components/KpiCard.jsx';
+import WeatherWidget from '../components/WeatherWidget.jsx';
 
 const COLORS = ['#16a34a', '#a6713d', '#2563eb', '#dc2626', '#9333ea', '#0891b2'];
 
@@ -83,12 +84,26 @@ export default function Dashboard() {
       </div>
 
       {insights.length > 0 && (
-        <div className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold text-earth-900">Karar Destek Önerileri</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {insights.slice(0, 4).map((ins, i) => (
-              <InsightCard key={i} insight={ins} />
-            ))}
+        <div className="mt-8 grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <h2 className="mb-4 text-lg font-semibold text-earth-900">Karar Destek Önerileri</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {insights.slice(0, 4).map((ins, i) => (
+                <InsightCard key={i} insight={ins} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className="mb-4 text-lg font-semibold text-earth-900 opacity-0 hidden lg:block">Hava Durumu</h2>
+            <WeatherWidget />
+          </div>
+        </div>
+      )}
+
+      {insights.length === 0 && (
+        <div className="mt-8 grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-start-3">
+            <WeatherWidget />
           </div>
         </div>
       )}
