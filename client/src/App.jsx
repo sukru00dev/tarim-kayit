@@ -14,6 +14,9 @@ import SeasonForm from './pages/SeasonForm.jsx';
 import Analytics from './pages/Analytics.jsx';
 import Report from './pages/Report.jsx';
 import Admin from './pages/Admin.jsx';
+import Register from './pages/Register.jsx';
+import Verify from './pages/Verify.jsx';
+
 function PrivateRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
   if (loading) {
@@ -38,6 +41,8 @@ export default function App() {
         <Route path="/contact" element={<Contact />} />
       </Route>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/verify" element={<Verify />} />
       <Route
         element={
           <PrivateRoute>

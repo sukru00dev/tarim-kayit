@@ -99,24 +99,13 @@ export default function Login() {
             {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
           </button>
 
-          <div className="mt-6 border-t border-earth-100 pt-4">
-            <p className="text-center text-xs text-earth-500">Demo hesapları (sunum için)</p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => fillDemo('farmer')}
-                className="btn-secondary flex-1 text-xs"
-              >
-                Çiftçi demo
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemo('admin')}
-                className="btn-secondary flex-1 text-xs"
-              >
-                Admin demo
-              </button>
-            </div>
+          <div className="mt-6 border-t border-earth-100 pt-4 text-center">
+            <p className="text-sm text-earth-600">
+              Hesabınız yok mu?{' '}
+              <Link to="/register" className="font-semibold text-primary-600 hover:text-primary-700">
+                Kayıt Olun
+              </Link>
+            </p>
           </div>
         </form>
       </div>

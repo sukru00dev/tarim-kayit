@@ -1,22 +1,32 @@
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema(
-  {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      lowercase: true,
-      minlength: 3,
-      maxlength: 32,
+  const userSchema = new mongoose.Schema(
+    {
+      username: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        lowercase: true,
+        minlength: 3,
+        maxlength: 32,
+      },
+      email: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        lowercase: true,
+      },
+      passwordHash: { type: String, required: true },
+      fullName: { type: String, required: true, trim: true },
+      role: { type: String, enum: ['admin', 'farmer'], default: 'farmer' },
+      isActive: { type: Boolean, default: true },
+      isVerified: { type: Boolean, default: false },
+      activationCode: { type: String },
+      activationCodeExpires: { type: Date },
     },
-    passwordHash: { type: String, required: true },
-    fullName: { type: String, required: true, trim: true },
-    role: { type: String, enum: ['admin', 'farmer'], default: 'farmer' },
-    isActive: { type: Boolean, default: true },
-  },
   { timestamps: true }
 );
 
