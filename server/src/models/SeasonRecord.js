@@ -23,6 +23,11 @@ const inputItemSchema = new mongoose.Schema(
     unit: { type: String, required: true, trim: true, default: 'adet' },
     unitPrice: { type: Number, required: true, min: 0 },
     total: { type: Number, required: true, min: 0 },
+    inventoryItemId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'InventoryItem',
+      default: null 
+    },
   },
   { _id: false }
 );

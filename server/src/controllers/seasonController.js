@@ -4,6 +4,7 @@ import {
   buildSeasonLabel,
   calculateSeasonTotals,
 } from '../utils/calculations.js';
+import InventoryItem from '../models/InventoryItem.js';
 import { asyncHandler } from '../middleware/auth.js';
 import fs from 'fs';
 import csv from 'csv-parser';
@@ -52,6 +53,30 @@ export const createSeason = asyncHandler(async (req, res) => {
   if (!field) {
     return res.status(404).json({ success: false, error: 'Tarla bulunamadı' });
   }
+
+  // Envanter Kontrolü (Stok Yeterli mi?)
+  const inventoryUpdates = [];
+  if (inputs && inputs.length > 0) {
+    for (const input of inputs) {
+      if (input.inventoryItemId) {
+        const item = await InventoryItem.findById(input.inventoryItemId);
+        if (!item) {
+          return res.status(404).json({ success: false, error: `${input.name} depoda bulunamadı` });
+        }
+        if (item.totalQuantity < input.amount) {
+          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.totalQuantity} ${item.unit})` });
+        }
+        inventoryUpdates.push({ item, deduction: input.amount });
+      }
+    }
+  }
+
+  // Stokları düş
+  for (const update of inventoryUpdates) {
+    update.item.totalQuantity -= update.deduction;
+    await update.item.save();
+  }
+
   const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(
     inputs || [],
     field.areaDecare
@@ -85,14 +110,39 @@ export const updateSeason = asyncHandler(async (req, res) => {
   }
   const field = await Field.findById(season.fieldId);
   const { year, seasonPeriod, inputs, notes, harvestQuantity, unitSalePrice } = req.body;
-  if (year) season.year = year;
-  if (seasonPeriod) {
-    if (!SEASON_PERIODS.includes(seasonPeriod)) {
-      return res.status(400).json({ success: false, error: 'Geçersiz dönem' });
-    }
-    season.seasonPeriod = seasonPeriod;
-  }
+  
   if (inputs) {
+    // 1. Eski inputları iade et
+    for (const oldInput of season.inputs) {
+      if (oldInput.inventoryItemId) {
+        const item = await InventoryItem.findById(oldInput.inventoryItemId);
+        if (item) {
+          item.totalQuantity += oldInput.amount;
+          await item.save();
+        }
+      }
+    }
+
+    // 2. Yeni inputları kontrol et ve düş
+    const inventoryUpdates = [];
+    for (const input of inputs) {
+      if (input.inventoryItemId) {
+        const item = await InventoryItem.findById(input.inventoryItemId);
+        if (!item) {
+          return res.status(404).json({ success: false, error: `${input.name} depoda bulunamadı` });
+        }
+        if (item.totalQuantity < input.amount) {
+          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.totalQuantity} ${item.unit})` });
+        }
+        inventoryUpdates.push({ item, deduction: input.amount });
+      }
+    }
+
+    for (const update of inventoryUpdates) {
+      update.item.totalQuantity -= update.deduction;
+      await update.item.save();
+    }
+
     const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(
       inputs,
       field.areaDecare
@@ -100,6 +150,14 @@ export const updateSeason = asyncHandler(async (req, res) => {
     season.inputs = normalizedInputs;
     season.totalCost = totalCost;
     season.costPerDecare = costPerDecare;
+  }
+
+  if (year) season.year = year;
+  if (seasonPeriod) {
+    if (!SEASON_PERIODS.includes(seasonPeriod)) {
+      return res.status(400).json({ success: false, error: 'Geçersiz dönem' });
+    }
+    season.seasonPeriod = seasonPeriod;
   }
   
   if (harvestQuantity !== undefined) season.harvestQuantity = Number(harvestQuantity) || 0;
@@ -124,6 +182,20 @@ export const deleteSeason = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin' && !season.userId.equals(req.user._id)) {
     return res.status(403).json({ success: false, error: 'Bu kayda erişim yok' });
   }
+
+  // Kullanılan malzemeleri depoya geri ekle
+  if (season.inputs && season.inputs.length > 0) {
+    for (const input of season.inputs) {
+      if (input.inventoryItemId) {
+        const item = await InventoryItem.findById(input.inventoryItemId);
+        if (item) {
+          item.totalQuantity += input.amount;
+          await item.save();
+        }
+      }
+    }
+  }
+
   await season.deleteOne();
   res.json({ success: true, message: 'Sezon kaydı silindi' });
 });

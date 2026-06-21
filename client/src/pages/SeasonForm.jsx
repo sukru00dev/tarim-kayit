@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client.js';
 
-const UNITS = ['kg', 'litre', 'gün', 'adet', 'ton'];
+const UNITS = ['kg', 'litre', 'gün', 'adet', 'ton', 'çuval', 'paket'];
 
 function formatCurrency(n) {
   return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n || 0);
@@ -15,6 +15,8 @@ export default function SeasonForm() {
 
   const [fields, setFields] = useState([]);
   const [defaults, setDefaults] = useState(null);
+  const [inventory, setInventory] = useState([]);
+  
   const [fieldId, setFieldId] = useState('');
   const [year, setYear] = useState(new Date().getFullYear());
   const [seasonPeriod, setSeasonPeriod] = useState('Yaz');
@@ -28,10 +30,13 @@ export default function SeasonForm() {
     Promise.all([
       api.get('/fields'),
       api.get('/seasons/defaults/inputs'),
+      api.get('/inventory').catch(() => ({ data: { data: [] } })), // Depoyu getir
       isEdit ? api.get(`/seasons/${id}`) : Promise.resolve(null),
-    ]).then(([fieldsRes, defaultsRes, seasonRes]) => {
+    ]).then(([fieldsRes, defaultsRes, inventoryRes, seasonRes]) => {
       setFields(fieldsRes.data.data);
       setDefaults(defaultsRes.data.data);
+      setInventory(inventoryRes.data.data || []);
+      
       if (seasonRes) {
         const s = seasonRes.data.data;
         setFieldId(s.fieldId._id || s.fieldId);
@@ -53,11 +58,34 @@ export default function SeasonForm() {
     setInputs((prev) => prev.map((inp, i) => (i === index ? { ...inp, [key]: value } : inp)));
   };
 
-  const addInput = () => {
+  const addCustomInput = () => {
     setInputs((prev) => [
       ...prev,
       { name: '', category: 'Diğer', unit: 'adet', amount: 0, unitPrice: 0 },
     ]);
+  };
+
+  const addInventoryInput = (e) => {
+    const invId = e.target.value;
+    if (!invId) return;
+    
+    const item = inventory.find(i => i._id === invId);
+    if (!item) return;
+
+    setInputs((prev) => [
+      ...prev,
+      { 
+        name: item.itemName, 
+        category: item.category, 
+        unit: item.unit, 
+        amount: 0, 
+        unitPrice: item.unitPrice,
+        inventoryItemId: item._id
+      },
+    ]);
+    
+    // Select kutusunu sıfırla
+    e.target.value = '';
   };
 
   const removeInput = (index) => {
@@ -80,6 +108,7 @@ export default function SeasonForm() {
           amount: Number(i.amount),
           unit: i.unit,
           unitPrice: Number(i.unitPrice),
+          inventoryItemId: i.inventoryItemId || null
         })),
       notes,
     };
@@ -127,7 +156,7 @@ export default function SeasonForm() {
           {isEdit ? 'Sezon Kaydını Düzenle' : 'Yeni Sezon Kaydı'}
         </h1>
         <p className="mt-1 text-earth-600">
-          Girdi maliyetlerini girin — toplam ve dekar başı maliyet otomatik hesaplanır
+          Girdi maliyetlerini girin — isterseniz deponuzdan kullanın, isterseniz manuel maliyet girin.
         </p>
       </div>
 
@@ -135,7 +164,7 @@ export default function SeasonForm() {
         <div className="space-y-6 lg:col-span-2">
           <div className="card">
             <h2 className="font-semibold text-earth-900">Sezon Bilgileri</h2>
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            {error && <div className="mt-2 rounded bg-red-50 p-2 text-sm text-red-600 font-medium">{error}</div>}
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div className="sm:col-span-1">
                 <label className="label">Tarla</label>
@@ -164,55 +193,104 @@ export default function SeasonForm() {
           </div>
 
           <div className="card">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <h2 className="font-semibold text-earth-900">Girdi Kalemleri</h2>
-              <button type="button" onClick={addInput} className="btn-secondary text-xs">
-                + Özel Girdi Ekle
-              </button>
+              <div className="flex items-center gap-2">
+                <select 
+                  className="input text-xs py-1.5 bg-primary-50 text-primary-700 border-primary-200" 
+                  onChange={addInventoryInput}
+                  defaultValue=""
+                >
+                  <option value="" disabled>📦 Depodan Kullan</option>
+                  {inventory.filter(i => i.totalQuantity > 0).map(inv => (
+                    <option key={inv._id} value={inv._id}>
+                      {inv.itemName} (Kalan: {inv.totalQuantity} {inv.unit})
+                    </option>
+                  ))}
+                </select>
+                <button type="button" onClick={addCustomInput} className="btn-secondary text-xs py-1.5">
+                  + Yeni Satın Alım
+                </button>
+              </div>
             </div>
             <div className="space-y-4">
-              {inputs.map((inp, idx) => (
-                <div key={idx} className="rounded-lg border border-earth-100 bg-earth-50/50 p-4">
-                  <div className="grid gap-3 sm:grid-cols-6">
-                    <div className="sm:col-span-2">
-                      <label className="label text-xs">Girdi Adı</label>
-                      <input className="input" value={inp.name} onChange={(e) => updateInput(idx, 'name', e.target.value)} required />
+              {inputs.map((inp, idx) => {
+                const isFromInventory = Boolean(inp.inventoryItemId);
+                
+                return (
+                  <div key={idx} className={`rounded-lg border p-4 ${isFromInventory ? 'border-primary-200 bg-primary-50/30' : 'border-earth-100 bg-earth-50/50'}`}>
+                    <div className="grid gap-3 sm:grid-cols-6">
+                      <div className="sm:col-span-2">
+                        <label className="label text-xs">Girdi Adı</label>
+                        <div className="relative">
+                          {isFromInventory && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs">📦</span>}
+                          <input 
+                            className={`input ${isFromInventory ? 'pl-6 bg-earth-100 text-earth-500' : ''}`} 
+                            value={inp.name} 
+                            onChange={(e) => updateInput(idx, 'name', e.target.value)} 
+                            required 
+                            disabled={isFromInventory}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label text-xs">Kategori</label>
+                        <select 
+                          className={`input ${isFromInventory ? 'bg-earth-100 text-earth-500' : ''}`} 
+                          value={inp.category} 
+                          onChange={(e) => updateInput(idx, 'category', e.target.value)}
+                          disabled={isFromInventory}
+                        >
+                          {defaults?.categories?.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label text-xs">Miktar</label>
+                        <input 
+                          type="number" min="0" step="0.01" 
+                          className="input border-primary-300" 
+                          value={inp.amount} 
+                          onChange={(e) => updateInput(idx, 'amount', e.target.value)} 
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-xs">Birim</label>
+                        <select 
+                          className={`input ${isFromInventory ? 'bg-earth-100 text-earth-500' : ''}`} 
+                          value={inp.unit} 
+                          onChange={(e) => updateInput(idx, 'unit', e.target.value)}
+                          disabled={isFromInventory}
+                        >
+                          {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label text-xs">Birim Fiyat (₺)</label>
+                        <input 
+                          type="number" min="0" step="0.01" 
+                          className={`input ${isFromInventory ? 'bg-earth-100 text-earth-500' : ''}`} 
+                          value={inp.unitPrice} 
+                          onChange={(e) => updateInput(idx, 'unitPrice', e.target.value)} 
+                          disabled={isFromInventory}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="label text-xs">Kategori</label>
-                      <select className="input" value={inp.category} onChange={(e) => updateInput(idx, 'category', e.target.value)}>
-                        {defaults?.categories?.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="label text-xs">Miktar</label>
-                      <input type="number" min="0" step="0.01" className="input" value={inp.amount} onChange={(e) => updateInput(idx, 'amount', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="label text-xs">Birim</label>
-                      <select className="input" value={inp.unit} onChange={(e) => updateInput(idx, 'unit', e.target.value)}>
-                        {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="label text-xs">Birim Fiyat (₺)</label>
-                      <input type="number" min="0" step="0.01" className="input" value={inp.unitPrice} onChange={(e) => updateInput(idx, 'unitPrice', e.target.value)} />
+                    <div className="mt-2 flex items-center justify-between text-sm">
+                      <span className="text-earth-500">
+                        {isFromInventory ? 'Maliyet Depodan Düşülecek' : 'Satır toplamı'}: 
+                        <strong className="ml-1 text-earth-900">{formatCurrency((inp.amount || 0) * (inp.unitPrice || 0))}</strong>
+                      </span>
+                      {inputs.length > 1 && (
+                        <button type="button" onClick={() => removeInput(idx)} className="text-red-600 text-xs hover:underline">
+                          Kaldır
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-sm">
-                    <span className="text-earth-500">
-                      Satır toplamı: {formatCurrency((inp.amount || 0) * (inp.unitPrice || 0))}
-                    </span>
-                    {inputs.length > 1 && (
-                      <button type="button" onClick={() => removeInput(idx)} className="text-red-600 text-xs">
-                        Kaldır
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -226,7 +304,7 @@ export default function SeasonForm() {
           <div className="card sticky top-8 bg-primary-50 border-primary-100">
             <h2 className="font-semibold text-earth-900">Maliyet Önizleme</h2>
             <p className="mt-1 text-xs text-earth-500">
-              C<sub>dekar</sub> = Σ(girdiler) / A<sub>toplam</sub>
+              Maliyetlere depodan düşülen kalemler dahildir.
             </p>
             <div className="mt-4 space-y-3">
               <div>

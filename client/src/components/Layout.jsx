@@ -7,6 +7,7 @@ const navItems = [
   { to: '/fields', label: 'Tarlalarım', icon: '🌾' },
   { to: '/seasons', label: 'Sezon Kayıtları', icon: '📅' },
   { to: '/income', label: 'Gelir ve Hasat', icon: '💰' },
+  { to: '/inventory', label: 'Depo ve Envanter', icon: '📦' },
   { to: '/assets', label: 'Demirbaşlarım', icon: '🚜' },
   { to: '/analytics', label: 'Karar Destek', icon: '💡' },
   { to: '/report', label: 'Rapor', icon: '📄' },
