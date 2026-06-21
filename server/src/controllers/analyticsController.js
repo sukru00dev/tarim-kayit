@@ -1,3 +1,4 @@
+import Asset from '../models/Asset.js';
 import Field from '../models/Field.js';
 import SeasonRecord from '../models/SeasonRecord.js';
 import Benchmark from '../models/Benchmark.js';
@@ -18,6 +19,9 @@ export const dashboard = asyncHandler(async (req, res) => {
   const totalCost = seasons.reduce((s, r) => s + r.totalCost, 0);
   const totalArea = fields.reduce((s, f) => s + f.areaDecare, 0);
   const avgCostPerDecare = totalArea > 0 ? Math.round((totalCost / totalArea) * 100) / 100 : 0;
+
+  const assets = await Asset.find({ userId });
+  const totalAnnualDepreciation = assets.reduce((s, a) => s + a.annualDepreciation, 0);
 
   const latestByField = {};
   for (const season of seasons) {
@@ -46,6 +50,7 @@ export const dashboard = asyncHandler(async (req, res) => {
         totalCost: Math.round(totalCost * 100) / 100,
         totalAreaDecare: totalArea,
         avgCostPerDecare,
+        totalAnnualDepreciation: Math.round(totalAnnualDepreciation * 100) / 100,
       },
       fields,
       recentSeasons: seasons.slice(0, 5),

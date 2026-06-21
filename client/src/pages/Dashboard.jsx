@@ -72,12 +72,12 @@ export default function Dashboard() {
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard title="Toplam Tarla" value={summary.fieldCount} icon="🌾" />
         <KpiCard title="Toplam Alan" value={`${summary.totalAreaDecare} dekar`} icon="📐" />
-        <KpiCard title="Toplam Maliyet" value={formatCurrency(summary.totalCost)} icon="💰" />
+        <KpiCard title="Toplam Tarla Maliyeti" value={formatCurrency(summary.totalCost)} icon="💰" />
         <KpiCard
-          title="Ort. Dekar Maliyeti"
-          value={formatCurrency(summary.avgCostPerDecare)}
-          subtitle="Tüm tarlalar ortalaması"
-          icon="📊"
+          title="Yıllık Demirbaş Amortismanı"
+          value={formatCurrency(summary.totalAnnualDepreciation)}
+          subtitle="Tüm traktör ve ekipman yıpranma payı"
+          icon="🚜"
         />
       </div>
 

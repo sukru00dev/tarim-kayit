@@ -11,11 +11,11 @@ import Dashboard from './pages/Dashboard.jsx';
 import Fields from './pages/Fields.jsx';
 import Seasons from './pages/Seasons.jsx';
 import SeasonForm from './pages/SeasonForm.jsx';
-import Analytics from './pages/Analytics.jsx';
 import Report from './pages/Report.jsx';
 import Admin from './pages/Admin.jsx';
 import Register from './pages/Register.jsx';
 import Verify from './pages/Verify.jsx';
+import Assets from './pages/Assets.jsx';
 
 function PrivateRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -56,6 +56,7 @@ export default function App() {
         <Route path="/seasons/new" element={<SeasonForm />} />
         <Route path="/seasons/:id/edit" element={<SeasonForm />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/assets" element={<Assets />} />
         <Route path="/report" element={<Report />} />
         <Route
           path="/admin"

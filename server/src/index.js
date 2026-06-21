@@ -11,6 +11,7 @@ import fieldRoutes from './routes/fieldRoutes.js';
 import seasonRoutes from './routes/seasonRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import benchmarkRoutes from './routes/benchmarkRoutes.js';
+import assetRoutes from './routes/assetRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +35,7 @@ app.use('/api/fields', fieldRoutes);
 app.use('/api/seasons', seasonRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/benchmarks', benchmarkRoutes);
+app.use('/api/assets', assetRoutes);
 
 app.use(errorHandler);
 
