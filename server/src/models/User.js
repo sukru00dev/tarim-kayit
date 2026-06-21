@@ -26,6 +26,7 @@ import mongoose from 'mongoose';
       isVerified: { type: Boolean, default: false },
       activationCode: { type: String },
       activationCodeExpires: { type: Date },
+      lastLoginAt: { type: Date },
     },
   { timestamps: true }
 );

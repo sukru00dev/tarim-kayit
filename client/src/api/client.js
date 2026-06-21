@@ -9,6 +9,35 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  // God Mode (Impersonation) Mantığı
+  let adminViewUserId = new URLSearchParams(window.location.search).get('adminViewUserId');
+  if (adminViewUserId) {
+    sessionStorage.setItem('adminViewUserId', adminViewUserId);
+  } else {
+    adminViewUserId = sessionStorage.getItem('adminViewUserId');
+  }
+
+  // Kullanıcı "Çıkış Yap" veya "Normal Moda Dön" derse sessionStorage temizlenecek.
+  // URL'de clearAdminView varsa temizle
+  if (new URLSearchParams(window.location.search).get('clearAdminView')) {
+    sessionStorage.removeItem('adminViewUserId');
+    adminViewUserId = null;
+  }
+
+  if (adminViewUserId) {
+    if (config.method.toLowerCase() === 'get') {
+      config.params = config.params || {};
+      config.params.userId = adminViewUserId;
+    } else if (['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
+      if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
+        config.data.userId = adminViewUserId;
+      } else if (!config.data) {
+        config.data = { userId: adminViewUserId };
+      }
+    }
+  }
+
   return config;
 });
 

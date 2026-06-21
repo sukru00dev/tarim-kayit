@@ -97,6 +97,7 @@ export default function Admin() {
               {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
               <div className="grid gap-3 sm:grid-cols-2">
                 <input className="input" placeholder="Kullanıcı adı" value={userForm.username} onChange={(e) => setUserForm({ ...userForm, username: e.target.value })} required />
+                <input type="email" className="input" placeholder="E-Posta" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} required />
                 <input className="input" placeholder="Ad Soyad" value={userForm.fullName} onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })} required />
                 <input type="password" className="input" placeholder="Şifre" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} required />
                 <select className="input" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}>
@@ -108,19 +109,70 @@ export default function Admin() {
             </form>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-4">
             {users.map((u) => (
-              <div key={u._id} className="flex items-center justify-between rounded-lg border border-earth-100 px-4 py-3">
-                <div>
-                  <p className="font-medium">{u.fullName}</p>
-                  <p className="text-xs text-earth-500">@{u.username} · {u.role === 'admin' ? 'Yönetici' : 'Çiftçi'}</p>
-                </div>
-                <div className="flex items-center gap-2">
+              <div key={u._id} className="flex flex-col gap-3 rounded-lg border border-earth-100 bg-white p-4 shadow-sm transition hover:border-primary-200 hover:shadow-md">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-earth-900">{u.fullName}</p>
+                    <p className="text-sm text-earth-600">@{u.username} • {u.email}</p>
+                    <div className="mt-2 text-xs text-earth-500">
+                      <p>Kayıt: {new Date(u.createdAt).toLocaleDateString('tr-TR')}</p>
+                      <p>Son Giriş: {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('tr-TR') : 'Hiç giriş yapmadı'}</p>
+                    </div>
+                  </div>
                   <span className={`badge ${u.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                     {u.isActive ? 'Aktif' : 'Pasif'}
                   </span>
-                  <button onClick={() => toggleUser(u)} className="text-xs text-primary-600">
-                    {u.isActive ? 'Pasifleştir' : 'Aktifleştir'}
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2 border-t border-earth-100 pt-3">
+                  <button 
+                    onClick={() => {
+                      if(window.confirm(`${u.fullName} adlı kullanıcının tüm verilerini görmek üzere God Mode'a geçiyorsunuz. Onaylıyor musunuz?`)) {
+                        window.location.href = `/dashboard?adminViewUserId=${u._id}`;
+                      }
+                    }} 
+                    className="btn-primary flex-1 text-xs"
+                  >
+                    👁️ Verilerini İncele
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      const newPass = window.prompt(`${u.fullName} için yeni şifreyi girin:`);
+                      if(newPass) {
+                        try {
+                          await api.put(`/users/${u._id}`, { password: newPass });
+                          alert('Şifre güncellendi!');
+                        } catch(err) {
+                          alert('Şifre güncellenemedi.');
+                        }
+                      }
+                    }} 
+                    className="btn-secondary flex-1 text-xs"
+                  >
+                    🔑 Şifre Sıfırla
+                  </button>
+                  <button 
+                    onClick={() => toggleUser(u)} 
+                    className="btn-secondary flex-1 text-xs"
+                  >
+                    {u.isActive ? 'Pasife Al' : 'Aktifleştir'}
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if(window.confirm(`DİKKAT: ${u.fullName} kullanıcısını ve kullanıcının eklediği TÜM tarlaları, maliyetleri ve demirbaşları tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) {
+                        try {
+                          await api.delete(`/users/${u._id}`);
+                          load();
+                        } catch(err) {
+                          alert(err.response?.data?.error || 'Silinemedi');
+                        }
+                      }
+                    }} 
+                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+                  >
+                    🗑️ Sil
                   </button>
                 </div>
               </div>

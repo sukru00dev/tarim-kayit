@@ -101,6 +101,10 @@ export const login = asyncHandler(async (req, res) => {
   if (!valid) {
     return res.status(401).json({ success: false, error: 'Geçersiz kullanıcı adı veya şifre' });
   }
+  
+  user.lastLoginAt = new Date();
+  await user.save();
+  
   const token = signToken(user);
   res.json({
     success: true,

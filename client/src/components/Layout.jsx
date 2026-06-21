@@ -122,7 +122,23 @@ export default function Layout() {
             Harran Üniversitesi · Çok Disiplinli Mühendislik Projesi
           </p>
         </div>
-        <div className="p-4 md:p-8 flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="flex-1 bg-gradient-to-br from-primary-50 to-earth-100 p-8 pt-20 lg:pt-8 overflow-y-auto">
+          {sessionStorage.getItem('adminViewUserId') && (
+            <div className="mb-6 rounded-lg bg-red-600 px-4 py-3 text-white shadow-lg flex items-center justify-between">
+              <div>
+                <strong className="font-bold">⚠️ GOD MODE AKTİF:</strong> Başka bir kullanıcının verilerini görüntülüyor ve düzenliyorsunuz.
+              </div>
+              <button 
+                onClick={() => {
+                  sessionStorage.removeItem('adminViewUserId');
+                  window.location.href = '/admin';
+                }}
+                className="rounded bg-white px-3 py-1 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+              >
+                Kapat ve Geri Dön
+              </button>
+            </div>
+          )}
           <Outlet />
         </div>
       </main>

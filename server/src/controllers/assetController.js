@@ -3,20 +3,23 @@ import { asyncHandler } from '../middleware/auth.js';
 
 // Get all assets for logged-in user
 export const getAssets = asyncHandler(async (req, res) => {
-  const assets = await Asset.find({ userId: req.user._id }).sort({ createdAt: -1 });
+  const userId = req.user.role === 'admin' && req.query.userId ? req.query.userId : req.user._id;
+  const assets = await Asset.find({ userId }).sort({ createdAt: -1 });
   res.json({ success: true, data: assets });
 });
 
 // Create new asset
 export const createAsset = asyncHandler(async (req, res) => {
-  const { assetName, purchasePrice, purchaseYear, usefulLifeYears, salvageValue, notes } = req.body;
+  const { assetName, purchasePrice, purchaseYear, usefulLifeYears, salvageValue, notes, userId: bodyUserId } = req.body;
 
   if (!assetName || !purchasePrice || !purchaseYear || !usefulLifeYears) {
     return res.status(400).json({ success: false, error: 'Lütfen tüm zorunlu alanları doldurun.' });
   }
 
+  const userId = req.user.role === 'admin' && bodyUserId ? bodyUserId : req.user._id;
+
   const asset = await Asset.create({
-    userId: req.user._id,
+    userId,
     assetName,
     purchasePrice,
     purchaseYear,
@@ -30,10 +33,14 @@ export const createAsset = asyncHandler(async (req, res) => {
 
 // Update asset
 export const updateAsset = asyncHandler(async (req, res) => {
-  const asset = await Asset.findOne({ _id: req.params.id, userId: req.user._id });
+  const asset = await Asset.findById(req.params.id);
 
   if (!asset) {
     return res.status(404).json({ success: false, error: 'Demirbaş bulunamadı.' });
+  }
+  
+  if (req.user.role !== 'admin' && !asset.userId.equals(req.user._id)) {
+    return res.status(403).json({ success: false, error: 'Erişim engellendi.' });
   }
 
   const updatedAsset = await Asset.findByIdAndUpdate(req.params.id, req.body, {
@@ -46,10 +53,14 @@ export const updateAsset = asyncHandler(async (req, res) => {
 
 // Delete asset
 export const deleteAsset = asyncHandler(async (req, res) => {
-  const asset = await Asset.findOne({ _id: req.params.id, userId: req.user._id });
+  const asset = await Asset.findById(req.params.id);
 
   if (!asset) {
     return res.status(404).json({ success: false, error: 'Demirbaş bulunamadı.' });
+  }
+
+  if (req.user.role !== 'admin' && !asset.userId.equals(req.user._id)) {
+    return res.status(403).json({ success: false, error: 'Erişim engellendi.' });
   }
 
   await asset.deleteOne();

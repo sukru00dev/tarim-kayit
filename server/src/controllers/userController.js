@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Field from '../models/Field.js';
 import SeasonRecord from '../models/SeasonRecord.js';
+import Asset from '../models/Asset.js';
 import { asyncHandler } from '../middleware/auth.js';
 
 export const listUsers = asyncHandler(async (_req, res) => {
@@ -9,20 +10,31 @@ export const listUsers = asyncHandler(async (_req, res) => {
 });
 
 export const createUser = asyncHandler(async (req, res) => {
-  const { username, password, fullName, role = 'farmer' } = req.body;
-  if (!username || !password || !fullName) {
+  const { username, email, password, fullName, role = 'farmer' } = req.body;
+  if (!username || !email || !password || !fullName) {
     return res.status(400).json({ success: false, error: 'Tüm alanlar zorunlu' });
   }
+  
+  const existingUser = await User.findOne({ 
+    $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase().trim() }] 
+  });
+
+  if (existingUser) {
+    return res.status(400).json({ success: false, error: 'Bu kullanıcı adı veya e-posta zaten kullanımda.' });
+  }
+
   const passwordHash = await User.hashPassword(password);
   const user = await User.create({
     username: username.toLowerCase().trim(),
+    email: email.toLowerCase().trim(),
     passwordHash,
     fullName,
     role: role === 'admin' ? 'admin' : 'farmer',
+    isVerified: true, // Admin tarafından eklendiği için anında onaylı
   });
   res.status(201).json({
     success: true,
-    data: { id: user._id, username: user.username, fullName: user.fullName, role: user.role },
+    data: { id: user._id, username: user.username, email: user.email, fullName: user.fullName, role: user.role },
   });
 });
 
@@ -53,6 +65,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
   }
   await Field.deleteMany({ userId: user._id });
   await SeasonRecord.deleteMany({ userId: user._id });
+  await Asset.deleteMany({ userId: user._id });
   await user.deleteOne();
   res.json({ success: true, message: 'Kullanıcı silindi' });
 });
