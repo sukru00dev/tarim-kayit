@@ -80,11 +80,11 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Kullanıcı adı ve şifre gerekli' });
   }
   
-  const searchStr = username.toLowerCase().trim();
+  const searchStr = username.trim();
   const user = await User.findOne({ 
     $or: [
-      { username: searchStr },
-      { email: searchStr }
+      { username: new RegExp(`^${searchStr}$`, 'i') },
+      { email: new RegExp(`^${searchStr}$`, 'i') }
     ]
   });
   
