@@ -79,7 +79,15 @@ export const login = asyncHandler(async (req, res) => {
   if (!username || !password) {
     return res.status(400).json({ success: false, error: 'Kullanıcı adı ve şifre gerekli' });
   }
-  const user = await User.findOne({ username: username.toLowerCase().trim() });
+  
+  const searchStr = username.toLowerCase().trim();
+  const user = await User.findOne({ 
+    $or: [
+      { username: searchStr },
+      { email: searchStr }
+    ]
+  });
+  
   if (!user || !user.isActive) {
     return res.status(401).json({ success: false, error: 'Geçersiz kullanıcı adı veya şifre' });
   }
