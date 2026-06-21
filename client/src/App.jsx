@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Fields from './pages/Fields.jsx';
 import Seasons from './pages/Seasons.jsx';
 import SeasonForm from './pages/SeasonForm.jsx';
+import Analytics from './pages/Analytics.jsx';
 import Report from './pages/Report.jsx';
 import Admin from './pages/Admin.jsx';
 import Register from './pages/Register.jsx';
