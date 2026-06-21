@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 import {
   getInventory,
   createItem,
@@ -9,7 +9,7 @@ import {
 
 const router = express.Router();
 
-router.use(protect);
+router.use(authenticate);
 
 router.route('/')
   .get(getInventory)
