@@ -37,6 +37,21 @@ app.use('/api/benchmarks', benchmarkRoutes);
 
 app.use(errorHandler);
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+if (process.env.NODE_ENV === 'production') {
+  // Serve frontend static files
+  app.use(express.static(path.join(__dirname, '../../client/dist')));
+
+  // Catch-all to serve index.html for React Router
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+  });
+}
 async function start() {
   await connectDB();
   app.listen(PORT, () => {

@@ -26,7 +26,11 @@ export default function Login() {
       const u = await login(username, password);
       navigate(u.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Giriş başarısız');
+      if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
+        setError('Sunucu yanıt vermiyor. Ücretsiz sunucu uyanıyor olabilir veya veritabanı bağlantısı kapalı, lütfen biraz bekleyip tekrar deneyin.');
+      } else {
+        setError(err.response?.data?.error || 'Giriş başarısız');
+      }
     } finally {
       setLoading(false);
     }
