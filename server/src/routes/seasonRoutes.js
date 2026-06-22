@@ -33,13 +33,23 @@ const seasonValidationRules = [
   body('inputs.*.unitPrice').optional().isFloat({ min: 0 }).withMessage('Birim fiyat 0 veya büyük olmalıdır'),
 ];
 
+const seasonUpdateValidationRules = [
+  body('fieldId').optional().notEmpty().withMessage('Tarla seçimi zorunludur'),
+  body('year').optional().isInt({ min: 2000, max: 2100 }).withMessage('Geçerli bir yıl giriniz'),
+  body('seasonPeriod').optional().isIn(['Yaz', 'Kış', 'İlkbahar', 'Sonbahar']).withMessage('Geçersiz dönem'),
+  body('inputs.*.amount').optional().isFloat({ min: 0 }).withMessage('Miktar 0 veya büyük olmalıdır'),
+  body('inputs.*.unitPrice').optional().isFloat({ min: 0 }).withMessage('Birim fiyat 0 veya büyük olmalıdır'),
+  body('harvestQuantity').optional().isFloat({ min: 0 }).withMessage('Hasat miktarı 0 veya büyük olmalıdır'),
+  body('unitSalePrice').optional().isFloat({ min: 0 }).withMessage('Birim satış fiyatı 0 veya büyük olmalıdır'),
+];
+
 router.use(authenticate);
 
 router.get('/defaults/inputs', getDefaultInputs);
 router.get('/', listSeasons);
 router.post('/', seasonValidationRules, validateRequest, createSeason);
 router.get('/:id', getSeason);
-router.put('/:id', seasonValidationRules, validateRequest, updateSeason);
+router.put('/:id', seasonUpdateValidationRules, validateRequest, updateSeason);
 router.delete('/:id', deleteSeason);
 router.post('/import/:fieldId', upload.single('file'), importSeasons);
 

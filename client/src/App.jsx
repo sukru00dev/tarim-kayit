@@ -20,6 +20,7 @@ import Admin from './pages/Admin.jsx';
 import Register from './pages/Register.jsx';
 import Verify from './pages/Verify.jsx';
 import Assets from './pages/Assets.jsx';
+import SoilAnalysis from './pages/SoilAnalysis.jsx';
 
 function PrivateRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/assets" element={<Assets />} />
+        <Route path="/soil-analysis" element={<SoilAnalysis />} />
         <Route path="/report" element={<Report />} />
         <Route
           path="/admin"

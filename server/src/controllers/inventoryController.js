@@ -56,7 +56,17 @@ export const deleteItem = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, error: 'Erişim engellendi' });
   }
 
-  // Sadece siler, SeasonRecord'daki referanslar null olmaz (MongoDB populate null döner)
+  const mongoose = await import('mongoose');
+  const SeasonRecord = mongoose.model('SeasonRecord');
+  const isUsed = await SeasonRecord.exists({ 'inputs.inventoryItemId': item._id });
+  
+  if (isUsed) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Bu ürün geçmiş veya mevcut sezon kayıtlarında kullanıldığı için tamamen silinemez. Dilerseniz miktarını 0 yapabilirsiniz.' 
+    });
+  }
+
   await item.deleteOne();
   res.json({ success: true, data: {} });
 });

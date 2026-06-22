@@ -9,32 +9,64 @@ import {
 import { asyncHandler } from '../middleware/auth.js';
 
 export const dashboard = asyncHandler(async (req, res) => {
+  const mongoose = await import('mongoose');
   const userId = req.user.role === 'admin' && req.query.userId ? req.query.userId : req.user._id;
+  
+  // Fields and basic area calc
   const fields = await Field.find({ userId });
   const fieldIds = fields.map((f) => f._id);
-  const seasons = await SeasonRecord.find({ userId, fieldId: { $in: fieldIds } })
-    .populate('fieldId', 'fieldName cropType areaDecare')
-    .sort({ year: -1, seasonPeriod: -1 });
-
-  const totalCost = seasons.reduce((s, r) => s + r.totalCost, 0);
-  const totalIncome = seasons.reduce((s, r) => s + (r.totalIncome || 0), 0);
-  const totalNetProfit = seasons.reduce((s, r) => s + (r.netProfit || -r.totalCost), 0);
   const totalArea = fields.reduce((s, f) => s + f.areaDecare, 0);
-  const avgCostPerDecare = totalArea > 0 ? Math.round((totalCost / totalArea) * 100) / 100 : 0;
+  
+  const userObjectId = new mongoose.Types.ObjectId(userId);
 
-  const assets = await Asset.find({ userId });
-  const totalAnnualDepreciation = assets.reduce((s, a) => s + a.annualDepreciation, 0);
+  // 1. Core Summary Stats via Aggregation
+  const statsAgg = await SeasonRecord.aggregate([
+    { $match: { userId: userObjectId } },
+    {
+      $group: {
+        _id: null,
+        totalCost: { $sum: '$totalCost' },
+        totalIncome: { $sum: { $ifNull: ['$totalIncome', 0] } },
+        totalNetProfit: { $sum: { $ifNull: ['$netProfit', { $multiply: ['$totalCost', -1] }] } },
+        seasonCount: { $sum: 1 },
+      }
+    }
+  ]);
+  
+  const stats = statsAgg[0] || { totalCost: 0, totalIncome: 0, totalNetProfit: 0, seasonCount: 0 };
+  const avgCostPerDecare = totalArea > 0 ? Math.round((stats.totalCost / totalArea) * 100) / 100 : 0;
 
-  const latestByField = {};
-  for (const season of seasons) {
-    const fid = season.fieldId._id.toString();
-    if (!latestByField[fid]) latestByField[fid] = season;
-  }
+  // 2. Cost Breakdown via Aggregation
+  const breakdownAgg = await SeasonRecord.aggregate([
+    { $match: { userId: userObjectId } },
+    { $unwind: '$inputs' },
+    {
+      $group: {
+        _id: { $ifNull: ['$inputs.category', 'Diğer'] },
+        total: { $sum: '$inputs.total' }
+      }
+    }
+  ]);
+  
+  const breakdown = breakdownAgg.map(b => ({
+    category: b._id,
+    total: Math.round(b.total * 100) / 100
+  }));
 
-  const breakdown = getCostBreakdown(seasons.flatMap((s) => s.inputs));
+  // 3. Assets Depreciation
+  const assetsAgg = await Asset.aggregate([
+    { $match: { userId: userObjectId } },
+    { $group: { _id: null, totalDepreciation: { $sum: '$annualDepreciation' } } }
+  ]);
+  const totalAnnualDepreciation = assetsAgg[0]?.totalDepreciation || 0;
 
-  const trend = seasons
-    .slice(0, 8)
+  // 4. Recent and Trend Seasons (Fetch only needed)
+  const recentSeasons = await SeasonRecord.find({ userId })
+    .populate('fieldId', 'fieldName cropType areaDecare')
+    .sort({ year: -1, seasonPeriod: -1 })
+    .limit(8); // limit 8 for trend, 5 for recent
+
+  const trend = [...recentSeasons]
     .reverse()
     .map((s) => ({
       label: s.seasonLabel,
@@ -42,7 +74,7 @@ export const dashboard = asyncHandler(async (req, res) => {
       totalIncome: s.totalIncome || 0,
       netProfit: s.netProfit || -s.totalCost,
       costPerDecare: s.costPerDecare,
-      fieldName: s.fieldId.fieldName,
+      fieldName: s.fieldId ? s.fieldId.fieldName : 'Bilinmeyen Tarla',
     }));
 
   res.json({
@@ -50,16 +82,16 @@ export const dashboard = asyncHandler(async (req, res) => {
     data: {
       summary: {
         fieldCount: fields.length,
-        seasonCount: seasons.length,
-        totalCost: Math.round(totalCost * 100) / 100,
-        totalIncome: Math.round(totalIncome * 100) / 100,
-        totalNetProfit: Math.round(totalNetProfit * 100) / 100,
+        seasonCount: stats.seasonCount,
+        totalCost: Math.round(stats.totalCost * 100) / 100,
+        totalIncome: Math.round(stats.totalIncome * 100) / 100,
+        totalNetProfit: Math.round(stats.totalNetProfit * 100) / 100,
         totalAreaDecare: totalArea,
         avgCostPerDecare,
         totalAnnualDepreciation: Math.round(totalAnnualDepreciation * 100) / 100,
       },
       fields,
-      recentSeasons: seasons.slice(0, 5),
+      recentSeasons: recentSeasons.slice(0, 5),
       costBreakdown: breakdown,
       trend,
     },
@@ -180,4 +212,71 @@ export const report = asyncHandler(async (req, res) => {
       insights: fieldInsights,
     },
   });
+});
+
+export const exportDataset = asyncHandler(async (req, res) => {
+  // Sadece adminler veya onaylı kullanıcılar yapabilsin
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Bu işlem için yetkiniz yok' });
+  }
+
+  const records = await SeasonRecord.find()
+    .populate('fieldId', 'cropType areaDecare location')
+    .sort({ year: -1 });
+
+  // CSV Başlıkları
+  const headers = [
+    'Crop_Type',
+    'Area_Decare',
+    'Year',
+    'Season_Period',
+    'Seed_Cost',
+    'Fertilizer_Cost',
+    'Fuel_Cost',
+    'Pesticide_Cost',
+    'Labor_Cost',
+    'Total_Cost',
+    'Cost_Per_Decare',
+    'Carbon_Footprint_kg_CO2e',
+    'Harvest_Quantity_kg',
+    'Net_Profit'
+  ].join(',');
+
+  const rows = records.map(r => {
+    // Kategorik maliyetleri çıkar
+    let seedCost = 0, fertCost = 0, fuelCost = 0, pestCost = 0, laborCost = 0;
+    r.inputs.forEach(i => {
+      if (i.category === 'Tohum') seedCost += i.total;
+      if (i.category === 'Gübre') fertCost += i.total;
+      if (i.category === 'Yakıt') fuelCost += i.total;
+      if (i.category === 'İlaç') pestCost += i.total;
+      if (i.category === 'İşçilik') laborCost += i.total;
+    });
+
+    return [
+      r.fieldId?.cropType || 'Bilinmiyor',
+      r.fieldId?.areaDecare || 0,
+      r.year,
+      r.seasonPeriod,
+      seedCost,
+      fertCost,
+      fuelCost,
+      pestCost,
+      laborCost,
+      r.totalCost,
+      r.costPerDecare,
+      r.carbonFootprint || 0,
+      r.harvestQuantity || 0,
+      r.netProfit || 0
+    ].join(',');
+  });
+
+  const csvContent = [headers, ...rows].join('\n');
+  
+  // UTF-8 BOM ekleyelim ki Excel Türkçe karakterleri doğru okusun (İngilizce başlıklar var ama olsun)
+  const bom = Buffer.from('\uFEFF', 'utf-8');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="ml_dataset.csv"');
+  res.send(Buffer.concat([bom, Buffer.from(csvContent, 'utf-8')]));
 });

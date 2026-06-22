@@ -127,6 +127,7 @@ export default function Seasons() {
                 <th className="pb-3 pr-4">Girdi Sayısı</th>
                 <th className="pb-3 pr-4 text-right">Toplam Maliyet</th>
                 <th className="pb-3 pr-4 text-right">Dekar Başı</th>
+                <th className="pb-3 pr-4 text-right">Karbon Ayizi</th>
                 <th className="pb-3">İşlem</th>
               </tr>
             </thead>
@@ -142,6 +143,13 @@ export default function Seasons() {
                   <td className="py-3 pr-4 text-right">{formatCurrency(s.totalCost)}</td>
                   <td className="py-3 pr-4 text-right font-semibold text-primary-700">
                     {formatCurrency(s.costPerDecare)}
+                  </td>
+                  <td className="py-3 pr-4 text-right text-earth-500">
+                    {s.carbonFootprint > 0 ? (
+                      <span className="text-xs bg-earth-100 px-2 py-1 rounded">
+                        {s.carbonFootprint} kg CO₂e
+                      </span>
+                    ) : '-'}
                   </td>
                   <td className="py-3">
                     <div className="flex gap-2">

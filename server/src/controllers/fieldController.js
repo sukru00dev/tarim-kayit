@@ -62,7 +62,21 @@ export const deleteField = asyncHandler(async (req, res) => {
   if (!field) {
     return res.status(404).json({ success: false, error: 'Tarla bulunamadı' });
   }
+
+  const mongoose = await import('mongoose');
+  const Task = mongoose.model('Task');
+  let SoilAnalysis;
+  try {
+    SoilAnalysis = mongoose.model('SoilAnalysis');
+  } catch(e) {
+    const sa = await import('../models/SoilAnalysis.js');
+    SoilAnalysis = sa.default;
+  }
+
   await SeasonRecord.deleteMany({ fieldId: field._id });
+  await Task.deleteMany({ fieldId: field._id });
+  if (SoilAnalysis) await SoilAnalysis.deleteMany({ fieldId: field._id });
+
   await field.deleteOne();
-  res.json({ success: true, message: 'Tarla ve sezon kayıtları silindi' });
+  res.json({ success: true, message: 'Tarla ve tarlaya ait tüm sezon/analiz/görev kayıtları silindi' });
 });

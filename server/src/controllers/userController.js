@@ -63,9 +63,30 @@ export const deleteUser = asyncHandler(async (req, res) => {
   if (user._id.equals(req.user._id)) {
     return res.status(400).json({ success: false, error: 'Kendi hesabınızı silemezsiniz' });
   }
+  
+  // Clean up all related data to prevent orphaned documents
+  const mongoose = await import('mongoose');
+  const Task = mongoose.model('Task');
+  const InventoryItem = mongoose.model('InventoryItem');
+  
+  // Modelin yüklenmiş olduğundan emin olmak için try-catch veya doğrudan import kullanabiliriz
+  // Ancak model daha önce register edilmişse mongoose.model() sorunsuzca çalışır.
+  let SoilAnalysis;
+  try {
+    SoilAnalysis = mongoose.model('SoilAnalysis');
+  } catch(e) {
+    // Model henüz require edilmemişse (nadiren)
+    const sa = await import('../models/SoilAnalysis.js');
+    SoilAnalysis = sa.default;
+  }
+  
   await Field.deleteMany({ userId: user._id });
   await SeasonRecord.deleteMany({ userId: user._id });
   await Asset.deleteMany({ userId: user._id });
+  await Task.deleteMany({ userId: user._id });
+  await InventoryItem.deleteMany({ userId: user._id });
+  if (SoilAnalysis) await SoilAnalysis.deleteMany({ userId: user._id });
+  
   await user.deleteOne();
   res.json({ success: true, message: 'Kullanıcı silindi' });
 });

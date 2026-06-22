@@ -77,7 +77,7 @@ export const createSeason = asyncHandler(async (req, res) => {
     await update.item.save();
   }
 
-  const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(
+  const { inputs: normalizedInputs, totalCost, costPerDecare, carbonFootprint } = calculateSeasonTotals(
     inputs || [],
     field.areaDecare
   );
@@ -94,6 +94,7 @@ export const createSeason = asyncHandler(async (req, res) => {
     unitSalePrice: 0,
     totalIncome: 0,
     netProfit: -totalCost, // Başlangıçta gelir olmadığı için net kar eksidir
+    carbonFootprint: carbonFootprint || 0,
     notes: notes || '',
   });
   const populated = await season.populate('fieldId', 'fieldName cropType areaDecare');
@@ -143,13 +144,14 @@ export const updateSeason = asyncHandler(async (req, res) => {
       await update.item.save();
     }
 
-    const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(
+    const { inputs: normalizedInputs, totalCost, costPerDecare, carbonFootprint } = calculateSeasonTotals(
       inputs,
       field.areaDecare
     );
     season.inputs = normalizedInputs;
     season.totalCost = totalCost;
     season.costPerDecare = costPerDecare;
+    season.carbonFootprint = carbonFootprint || 0;
   }
 
   if (year) season.year = year;
@@ -252,29 +254,46 @@ export const importSeasons = asyncHandler(async (req, res) => {
             }
 
             const inputs = [];
-            
-            // Expected CSV headers: Tohum_Miktar, Tohum_Fiyat, Gubre_Miktar, vb.
             const categories = ['Tohum', 'Gübre', 'Yakıt', 'İlaç', 'İşçilik'];
             
-            categories.forEach(cat => {
+            for (const cat of categories) {
               const amount = parseFloat(row[`${cat}_Miktar`]) || 0;
               const unitPrice = parseFloat(row[`${cat}_Fiyat`]) || 0;
               if (amount > 0 && unitPrice > 0) {
+                let inventoryItemId = null;
+                
+                // Stok kontrolü ve düşme
+                const items = await InventoryItem.find({ 
+                  userId: field.userId, 
+                  category: cat,
+                  totalQuantity: { $gte: amount }
+                }).sort({ totalQuantity: -1 });
+
+                if (items.length > 0) {
+                  const selectedItem = items[0];
+                  selectedItem.totalQuantity -= amount;
+                  await selectedItem.save();
+                  inventoryItemId = selectedItem._id;
+                }
+
                 inputs.push({
-                  name: cat,
+                  name: inventoryItemId ? items[0].itemName : cat,
                   category: cat,
                   amount,
                   unitPrice,
-                  unit: cat === 'Yakıt' ? 'litre' : cat === 'İşçilik' ? 'gün' : 'kg'
+                  unit: cat === 'Yakıt' ? 'litre' : cat === 'İşçilik' ? 'gün' : 'kg',
+                  inventoryItemId
                 });
               }
-            });
+            }
 
-            const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(
+            const { inputs: normalizedInputs, totalCost, costPerDecare, carbonFootprint } = calculateSeasonTotals(
               inputs,
               field.areaDecare
             );
 
+            // Eğer kayıt varsa (upsert), eski kayıtların stoklarını iade etmemiz gerekirdi ancak bu basit import versiyonu 
+            // üzerine yazmayı desteklediğinden şimdilik doğrudan güncelliyoruz.
             await SeasonRecord.findOneAndUpdate(
               { fieldId: field._id, year, seasonPeriod },
               {
@@ -283,6 +302,7 @@ export const importSeasons = asyncHandler(async (req, res) => {
                 inputs: normalizedInputs,
                 totalCost,
                 costPerDecare,
+                carbonFootprint: carbonFootprint || 0,
                 notes: 'CSV ile içe aktarıldı'
               },
               { upsert: true, new: true }

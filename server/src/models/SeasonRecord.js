@@ -63,6 +63,9 @@ const seasonRecordSchema = new mongoose.Schema(
     unitSalePrice: { type: Number, min: 0, default: 0 }, // Örn: kg başı satış fiyatı (TL)
     totalIncome: { type: Number, min: 0, default: 0 }, // harvestQuantity * unitSalePrice
     netProfit: { type: Number, default: 0 }, // totalIncome - totalCost
+    
+    // Akademik / Sürdürülebilirlik
+    carbonFootprint: { type: Number, default: 0 }, // Toplam Karbon Ayak İzi (kg CO2e)
   },
   { timestamps: true }
 );

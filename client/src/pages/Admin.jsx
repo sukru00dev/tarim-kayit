@@ -207,14 +207,42 @@ export default function Admin() {
         <p className="mt-1 text-sm text-earth-600">
           Swagger UI üzerinden tüm REST API uç noktalarını inceleyebilirsiniz.
         </p>
-        <a
-          href="http://localhost:5000/api/docs"
-          target="_blank"
-          rel="noreferrer"
-          className="btn-secondary mt-4 inline-flex"
+        <div className="flex gap-4 mt-4">
+          <a
+            href="http://localhost:5000/api/docs"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary inline-flex"
+          >
+            Swagger UI Aç →
+          </a>
+        </div>
+      </div>
+
+      <div className="card mt-8 border-primary-200 bg-primary-50">
+        <h2 className="font-semibold text-primary-900">Akademik Araştırma ve Veri Seti Çıktısı</h2>
+        <p className="mt-1 text-sm text-primary-700">
+          Akademik araştırmalar ve makine öğrenmesi (ML) tahminsel modelleri için sistemdeki tüm sezonları (kişisel verilerden arındırılmış biçimde) CSV olarak indirebilirsiniz.
+        </p>
+        <button
+          onClick={async () => {
+            try {
+              const res = await api.get('/analytics/export-dataset', { responseType: 'blob' });
+              const url = window.URL.createObjectURL(new Blob([res.data]));
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', 'ml_dataset.csv');
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } catch (err) {
+              alert('Veri seti indirilemedi.');
+            }
+          }}
+          className="btn-primary mt-4 inline-flex"
         >
-          Swagger UI Aç →
-        </a>
+          ⬇️ ML Dataset (CSV) İndir
+        </button>
       </div>
     </div>
   );

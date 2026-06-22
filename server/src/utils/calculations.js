@@ -5,8 +5,22 @@ export function calculateInputTotal(amount, unitPrice) {
 }
 
 export function calculateSeasonTotals(inputs, areaDecare) {
+  let carbonFootprint = 0;
+  
   const normalizedInputs = inputs.map((input) => {
     const total = calculateInputTotal(input.amount, input.unitPrice);
+    
+    // Karbon Ayak İzi Hesaplama (Basit Tahminleme Modeli)
+    let itemCarbon = 0;
+    if (input.category === 'Yakıt') {
+      itemCarbon = input.amount * 2.68; // 1 Litre mazot ortalama 2.68 kg CO2e
+    } else if (input.category === 'Gübre') {
+      itemCarbon = input.amount * 2.5; // Ortalama 2.5 kg CO2e / kg
+    } else if (input.category === 'İlaç') {
+      itemCarbon = input.amount * 5.0; // İlaç üretimi yüksek karbonludur
+    }
+    carbonFootprint += itemCarbon;
+    
     return {
       name: input.name,
       category: input.category || 'Diğer',
@@ -23,8 +37,10 @@ export function calculateSeasonTotals(inputs, areaDecare) {
     areaDecare > 0
       ? Math.round((totalCost / areaDecare) * 100) / 100
       : 0;
+      
+  carbonFootprint = Math.round(carbonFootprint * 100) / 100;
 
-  return { inputs: normalizedInputs, totalCost, costPerDecare };
+  return { inputs: normalizedInputs, totalCost, costPerDecare, carbonFootprint };
 }
 
 export function buildSeasonLabel(year, seasonPeriod) {

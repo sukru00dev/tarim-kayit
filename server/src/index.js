@@ -14,6 +14,7 @@ import benchmarkRoutes from './routes/benchmarkRoutes.js';
 import assetRoutes from './routes/assetRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
+import soilRoutes from './routes/soilRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,11 +36,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/fields', fieldRoutes);
 app.use('/api/seasons', seasonRoutes);
-app.use('/api/analytics', analyticsRoutes);
 app.use('/api/benchmarks', benchmarkRoutes);
-app.use('/api/assets', assetRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/assets', assetRoutes);
+app.use('/api/soils', soilRoutes);
 
 app.use(errorHandler);
 
