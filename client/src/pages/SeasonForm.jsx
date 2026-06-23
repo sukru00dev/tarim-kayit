@@ -42,7 +42,19 @@ export default function SeasonForm() {
         setFieldId(s.fieldId._id || s.fieldId);
         setYear(s.year);
         setSeasonPeriod(s.seasonPeriod);
-        setInputs(s.inputs);
+        
+        // Mevcut kalemleri al
+        let existingInputs = s.inputs || [];
+        
+        // Eksik varsayılan kategorileri 0 olarak ekle
+        const defaultCats = defaultsRes.data.data.defaults;
+        defaultCats.forEach(def => {
+          if (!existingInputs.find(inp => inp.category === def.category)) {
+            existingInputs.push({ ...def, amount: 0, unitPrice: 0 });
+          }
+        });
+        
+        setInputs(existingInputs);
         setNotes(s.notes || '');
       } else {
         setInputs(defaultsRes.data.data.defaults.map((d) => ({ ...d, amount: 0, unitPrice: 0 })));

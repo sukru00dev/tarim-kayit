@@ -24,9 +24,26 @@ function MapController({ center, zoom }) {
   return null;
 }
 
-function DrawControlRaw({ onPolygonChange }) {
+function DrawControlRaw({ onPolygonChange, initialPolygon }) {
   const map = useMap();
   const featureGroupRef = useRef(new L.FeatureGroup());
+
+  useEffect(() => {
+    const featureGroup = featureGroupRef.current;
+    featureGroup.clearLayers();
+    
+    if (initialPolygon && Object.keys(initialPolygon).length > 0) {
+      try {
+        const geoJsonLayer = L.geoJSON(initialPolygon);
+        geoJsonLayer.eachLayer((layer) => {
+          featureGroup.addLayer(layer);
+        });
+        map.fitBounds(geoJsonLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+      } catch (err) {
+        console.error('Error parsing initialPolygon:', err);
+      }
+    }
+  }, [initialPolygon, map]);
 
   useEffect(() => {
     const featureGroup = featureGroupRef.current;
@@ -85,7 +102,7 @@ function DrawControlRaw({ onPolygonChange }) {
   return null;
 }
 
-export default function MapPolygonSelector({ onPolygonChange }) {
+export default function MapPolygonSelector({ onPolygonChange, initialPolygon }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [mapCenter, setMapCenter] = useState([39.92077, 32.85411]);
@@ -163,7 +180,7 @@ export default function MapPolygonSelector({ onPolygonChange }) {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
-          <DrawControlRaw onPolygonChange={onPolygonChange} />
+          <DrawControlRaw onPolygonChange={onPolygonChange} initialPolygon={initialPolygon} />
         </MapContainer>
       </div>
     </div>

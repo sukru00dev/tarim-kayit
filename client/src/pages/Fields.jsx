@@ -265,7 +265,26 @@ export default function Fields() {
             <div className="sm:col-span-2">
               <label className="label mb-1">Harita Üzerinde Çizim (CBS)</label>
               <p className="text-xs text-earth-500 mb-3">Tarlanızın sınırlarını sağ üstteki poligon ikonuna (⬟) tıklayarak haritada çizin. Bu sayede hava durumu tam o noktaya göre çekilecektir.</p>
-              <MapPolygonSelector onPolygonChange={(geo) => setForm({ ...form, polygon: geo })} />
+              <MapPolygonSelector 
+                onPolygonChange={async (geo) => {
+                  setForm(prev => ({ ...prev, polygon: geo }));
+                  if (geo && geo.coordinates && geo.coordinates.length > 0 && !form.location) {
+                    try {
+                      // Get the first coordinate [lng, lat]
+                      const coords = geo.coordinates[0][0];
+                      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[1]}&lon=${coords[0]}`);
+                      const data = await res.json();
+                      if (data && data.display_name) {
+                        const shortName = data.display_name.split(',').slice(0, 3).join(',');
+                        setForm(prev => ({ ...prev, location: shortName }));
+                      }
+                    } catch (err) {
+                      console.error('Reverse geocoding error:', err);
+                    }
+                  }
+                }} 
+                initialPolygon={form.polygon} 
+              />
             </div>
 
             <div className="sm:col-span-2">
