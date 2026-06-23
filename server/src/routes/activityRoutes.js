@@ -1,5 +1,5 @@
 import express from 'express';
-import { logActivity, getAssetActivities, fetchIoTData } from '../controllers/activityController.js';
+import { getActivities, createActivity } from '../controllers/activityController.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
