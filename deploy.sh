@@ -13,7 +13,7 @@ cd ..
 # İstemci bağımlılıklarını kur ve derle
 echo "İstemci (Frontend) paketleri yükleniyor ve derleniyor..."
 cd client
-npm install
+npm install --legacy-peer-deps
 npm run build
 cd ..
 
