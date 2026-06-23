@@ -1,10 +1,10 @@
 import express from 'express';
-import { getActivities, createActivity } from '../controllers/activityController.js';
-import { protect } from '../middleware/auth.js';
+import { logActivity, getAssetActivities, fetchIoTData } from '../controllers/activityController.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.use(protect); // Tüm rotalar için giriş zorunlu
+router.use(authenticate); // Tüm rotalar için giriş zorunlu
 
 router.route('/')
   .get(getActivities)

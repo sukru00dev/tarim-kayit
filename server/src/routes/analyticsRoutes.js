@@ -9,11 +9,11 @@ import {
   getSmartWeatherAdvice,
   getIotTelemetry
 } from '../controllers/analyticsController.js';
-import { protect } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-router.use(protect); // Dikkat: middleware adı `protect` olarak düzeltildi (projede genelde protect kullanılır)
+router.use(authenticate);
 
 router.get('/dashboard', dashboard);
 router.get('/insights', insights);

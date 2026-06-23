@@ -1,16 +1,13 @@
 import express from 'express';
-import { getLatestPrices, getCommodityHistory, syncMarketPrices } from '../controllers/marketController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { getMarketPrices, syncMarketPrices } from '../controllers/marketController.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Borsa özet ekranı: Tüm ürünlerin en güncel fiyatları
-router.get('/latest', getLatestPrices);
+// GET /api/market?cropType=Buğday&region=İç Anadolu
+router.get('/', getMarketPrices);
 
-// Grafik çizimi için belirli bir ürünün son 30 günlük geçmişi
-router.get('/history/:commodity', getCommodityHistory);
-
-// Borsa verilerini güncelle (Admin veya Sistem Cron Job)
-router.post('/sync', protect, authorize('admin'), syncMarketPrices);
+// POST /api/market/sync - Dış kaynaklardan fiyatları çeker (Sadece admin/enterprise yetkisi olabilir)
+router.post('/sync', authenticate, authorize('admin'), syncMarketPrices);
 
 export default router;
