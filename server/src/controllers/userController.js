@@ -1,9 +1,6 @@
 import User from '../models/User.js';
-import Field from '../models/Field.js';
-import SeasonRecord from '../models/SeasonRecord.js';
 import Asset from '../models/Asset.js';
 import Task from '../models/Task.js';
-import InventoryItem from '../models/InventoryItem.js';
 import SoilAnalysis from '../models/SoilAnalysis.js';
 import { asyncHandler } from '../middleware/auth.js';
 
@@ -76,11 +73,8 @@ export const deleteUser = asyncHandler(async (req, res) => {
   }
   
   // Clean up all related data to prevent orphaned documents  
-  await Field.deleteMany({ userId: user._id });
-  await SeasonRecord.deleteMany({ userId: user._id });
   await Asset.deleteMany({ userId: user._id });
   await Task.deleteMany({ userId: user._id });
-  await InventoryItem.deleteMany({ userId: user._id });
   if (SoilAnalysis) await SoilAnalysis.deleteMany({ userId: user._id });
   
   await user.deleteOne();
@@ -91,14 +85,17 @@ export const systemStats = asyncHandler(async (_req, res) => {
   const [userCount, farmerCount, fieldCount, seasonCount, totalArea] = await Promise.all([
     User.countDocuments(),
     User.countDocuments({ role: 'farmer', isActive: true }),
-    Field.countDocuments(),
-    SeasonRecord.countDocuments(),
-    Field.aggregate([{ $group: { _id: null, total: { $sum: '$areaDecare' } } }]),
+    Asset.countDocuments({ type: 'Land' }),
+    Asset.countDocuments({ type: 'PlantingSeason' }),
+    Asset.aggregate([
+      { $match: { type: 'Land' } },
+      { $group: { _id: null, total: { $sum: '$areaDecare' } } }
+    ]),
   ]);
-  const latestSeasons = await SeasonRecord.find()
+  const latestSeasons = await Asset.find({ type: 'PlantingSeason' })
     .sort({ year: -1, updatedAt: -1 })
     .limit(5)
-    .populate('fieldId', 'fieldName cropType')
+    .populate('fieldId', 'name cropType')
     .populate('userId', 'fullName');
   res.json({
     success: true,

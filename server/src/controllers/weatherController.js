@@ -1,11 +1,11 @@
 import { asyncHandler } from '../middleware/auth.js';
-import Field from '../models/Field.js';
+import Asset from '../models/Asset.js';
 
 export const getFieldWeather = asyncHandler(async (req, res) => {
   const { fieldId } = req.params;
   
-  const field = await Field.findById(fieldId);
-  if (!field) {
+  const field = await Asset.findById(fieldId);
+  if (!field || field.type !== 'Land') {
     return res.status(404).json({ success: false, error: 'Tarla bulunamadı' });
   }
 

@@ -1,5 +1,5 @@
 import SoilAnalysis from '../models/SoilAnalysis.js';
-import Field from '../models/Field.js';
+import Asset from '../models/Asset.js';
 import { asyncHandler } from '../middleware/auth.js';
 
 export const getAnalyses = asyncHandler(async (req, res) => {
@@ -9,7 +9,7 @@ export const getAnalyses = asyncHandler(async (req, res) => {
     filter.fieldId = req.query.fieldId;
   }
   const analyses = await SoilAnalysis.find(filter)
-    .populate('fieldId', 'fieldName cropType areaDecare')
+    .populate('fieldId', 'name cropType areaDecare')
     .sort({ analysisDate: -1 });
   
   res.json({ success: true, data: analyses });
@@ -22,8 +22,8 @@ export const createAnalysis = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Tarla seçimi ve pH değeri zorunludur' });
   }
 
-  const field = await Field.findById(fieldId);
-  if (!field) {
+  const field = await Asset.findById(fieldId);
+  if (!field || field.type !== 'Land') {
     return res.status(404).json({ success: false, error: 'Tarla bulunamadı' });
   }
   
@@ -43,7 +43,7 @@ export const createAnalysis = asyncHandler(async (req, res) => {
     notes
   });
 
-  const populated = await analysis.populate('fieldId', 'fieldName cropType');
+  const populated = await analysis.populate('fieldId', 'name cropType');
   res.status(201).json({ success: true, data: populated });
 });
 
