@@ -21,7 +21,11 @@ import mongoose from 'mongoose';
       },
       passwordHash: { type: String, required: true },
       fullName: { type: String, required: true, trim: true },
-      role: { type: String, enum: ['admin', 'farmer'], default: 'farmer' },
+      role: { 
+        type: String, 
+        enum: ['admin', 'farmer', 'enterprise', 'ogm_officer', 'researcher', 'market_trader'], 
+        default: 'farmer' 
+      },
       isActive: { type: Boolean, default: true },
       isVerified: { type: Boolean, default: false },
       activationCode: { type: String },

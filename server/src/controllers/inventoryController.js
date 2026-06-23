@@ -1,9 +1,17 @@
-import InventoryItem from '../models/InventoryItem.js';
+import Asset from '../models/Asset.js';
 import { asyncHandler } from '../middleware/auth.js';
+
+function mapAssetToInventory(asset) {
+  const obj = asset.toObject ? asset.toObject() : asset;
+  obj.itemName = obj.name;
+  obj.totalQuantity = obj.currentQuantity;
+  return obj;
+}
 
 export const getInventory = asyncHandler(async (req, res) => {
   const userId = req.user.role === 'admin' && req.query.userId ? req.query.userId : req.user._id;
-  const items = await InventoryItem.find({ userId }).sort({ category: 1, itemName: 1 });
+  const assets = await Asset.find({ userId, type: { $in: ['Inventory', 'Material'] } }).sort({ category: 1, name: 1 });
+  const items = assets.map(mapAssetToInventory);
   res.json({ success: true, data: items });
 });
 
@@ -15,21 +23,22 @@ export const createItem = asyncHandler(async (req, res) => {
 
   const userId = req.user.role === 'admin' && bodyUserId ? bodyUserId : req.user._id;
 
-  const item = await InventoryItem.create({
+  const item = await Asset.create({
     userId,
-    itemName,
+    name: itemName,
+    type: 'Inventory',
     category,
     unit,
-    totalQuantity: totalQuantity || 0,
+    currentQuantity: totalQuantity || 0,
     unitPrice,
     notes: notes || '',
   });
 
-  res.status(201).json({ success: true, data: item });
+  res.status(201).json({ success: true, data: mapAssetToInventory(item) });
 });
 
 export const updateItem = asyncHandler(async (req, res) => {
-  const item = await InventoryItem.findById(req.params.id);
+  const item = await Asset.findOne({ _id: req.params.id, type: { $in: ['Inventory', 'Material'] } });
   if (!item) {
     return res.status(404).json({ success: false, error: 'Depo ürünü bulunamadı' });
   }
@@ -38,16 +47,22 @@ export const updateItem = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, error: 'Erişim engellendi' });
   }
 
-  const updatedItem = await InventoryItem.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const { itemName, category, unit, totalQuantity, unitPrice, notes } = req.body;
+  
+  if (itemName) item.name = itemName;
+  if (category) item.category = category;
+  if (unit) item.unit = unit;
+  if (totalQuantity !== undefined) item.currentQuantity = totalQuantity;
+  if (unitPrice !== undefined) item.unitPrice = unitPrice;
+  if (notes !== undefined) item.notes = notes;
 
-  res.json({ success: true, data: updatedItem });
+  await item.save();
+
+  res.json({ success: true, data: mapAssetToInventory(item) });
 });
 
 export const deleteItem = asyncHandler(async (req, res) => {
-  const item = await InventoryItem.findById(req.params.id);
+  const item = await Asset.findOne({ _id: req.params.id, type: { $in: ['Inventory', 'Material'] } });
   if (!item) {
     return res.status(404).json({ success: false, error: 'Depo ürünü bulunamadı' });
   }
@@ -56,9 +71,7 @@ export const deleteItem = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, error: 'Erişim engellendi' });
   }
 
-  const mongoose = await import('mongoose');
-  const SeasonRecord = mongoose.model('SeasonRecord');
-  const isUsed = await SeasonRecord.exists({ 'inputs.inventoryItemId': item._id });
+  const isUsed = await Asset.exists({ type: 'PlantingSeason', 'inputs.inventoryItemId': item._id });
   
   if (isUsed) {
     return res.status(400).json({ 

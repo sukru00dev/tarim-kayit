@@ -8,23 +8,37 @@ export const getAssets = asyncHandler(async (req, res) => {
   res.json({ success: true, data: assets });
 });
 
-// Create new asset
 export const createAsset = asyncHandler(async (req, res) => {
-  const { assetName, purchasePrice, purchaseYear, usefulLifeYears, salvageValue, notes, userId: bodyUserId } = req.body;
+  const { 
+    name, type, status, 
+    purchasePrice, purchaseYear, usefulLifeYears, salvageValue,
+    category, unit, currentQuantity, unitPrice,
+    areaDecare, cropType, polygon,
+    notes, userId: bodyUserId 
+  } = req.body;
 
-  if (!assetName || !purchasePrice || !purchaseYear || !usefulLifeYears) {
-    return res.status(400).json({ success: false, error: 'Lütfen tüm zorunlu alanları doldurun.' });
+  if (!name || !type) {
+    return res.status(400).json({ success: false, error: 'Varlık adı ve tipi (type) zorunludur.' });
   }
 
   const userId = req.user.role === 'admin' && bodyUserId ? bodyUserId : req.user._id;
 
   const asset = await Asset.create({
     userId,
-    assetName,
+    name,
+    type,
+    status: status || 'Active',
     purchasePrice,
     purchaseYear,
     usefulLifeYears,
     salvageValue: salvageValue || 0,
+    category,
+    unit,
+    currentQuantity: currentQuantity || 0,
+    unitPrice,
+    areaDecare,
+    cropType,
+    polygon,
     notes,
   });
 

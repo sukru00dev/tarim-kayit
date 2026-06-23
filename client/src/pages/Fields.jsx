@@ -58,6 +58,9 @@ export default function Fields() {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showCksModal, setShowCksModal] = useState(false);
+  const [cksLoading, setCksLoading] = useState(false);
+  const [tcKimlik, setTcKimlik] = useState('');
   const [form, setForm] = useState({
     fieldName: '',
     cropType: '',
@@ -67,8 +70,12 @@ export default function Fields() {
     polygon: null,
   });
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const load = () => {
+    // Phase 2 refactor sonrası tarlalar Asset tablosunda type: 'Land' olarak tutuluyor.
+    // Ancak Fields arayüzü geçiş sürecinde olduğu için backend /fields kullanıyor olabilir.
+    // Şimdilik mevcut API'yi çağırıyoruz. (CKS aktarımı Asset olarak atıyor)
     api.get('/fields').then((res) => setFields(res.data.data)).finally(() => setLoading(false));
   };
 
@@ -84,6 +91,27 @@ export default function Fields() {
       load();
     } catch (err) {
       setError(err.response?.data?.error || 'Kayıt başarısız');
+    }
+  };
+
+  const handleCksSync = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    setCksLoading(true);
+    try {
+      const res = await api.post('/gov/cks/sync', { tcIdentity: tcKimlik });
+      setSuccessMsg(res.data.message);
+      setTcKimlik('');
+      setTimeout(() => {
+        setShowCksModal(false);
+        setSuccessMsg('');
+        load();
+      }, 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'ÇKS bağlantısı başarısız oldu.');
+    } finally {
+      setCksLoading(false);
     }
   };
 
@@ -110,12 +138,77 @@ export default function Fields() {
             Geri Dön
           </button>
           <h1 className="text-2xl font-bold text-earth-900">Tarlalarım</h1>
-          <p className="mt-1 text-earth-600">Tarla bilgilerinizi yönetin ve hava durumunu takip edin.</p>
+          <p className="mt-1 text-earth-600">Tarla bilgilerinizi yönetin ve e-Devlet ile senkronize edin.</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-          {showForm ? 'İptal' : '+ Yeni Tarla'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button onClick={() => setShowCksModal(true)} className="btn-secondary flex items-center justify-center gap-2 border-green-600 text-green-700 hover:bg-green-50">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            ÇKS'den Aktar
+          </button>
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+            {showForm ? 'İptal' : '+ Yeni Tarla'}
+          </button>
+        </div>
       </div>
+
+      {/* ÇKS Modal */}
+      {showCksModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                    <span className="text-xl">🇹🇷</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">e-Devlet ÇKS Bağlantısı</h3>
+                    <p className="text-xs text-gray-500 font-medium">Tarım ve Orman Bakanlığı</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowCksModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              
+              <form onSubmit={handleCksSync}>
+                <p className="text-sm text-gray-600 mb-4">
+                  T.C. Kimlik numaranızı girerek Çiftçi Kayıt Sisteminde (ÇKS) kayıtlı olan tarlalarınızı tek tuşla aktarabilirsiniz.
+                </p>
+                
+                {error && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg border border-red-100">{error}</div>}
+                {successMsg && <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg border border-green-100 flex items-center gap-2"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>{successMsg}</div>}
+                
+                <div className="mb-5">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">T.C. Kimlik Numarası</label>
+                  <input 
+                    type="text" 
+                    maxLength="11"
+                    pattern="\d{11}"
+                    placeholder="11 Haneli TCKN"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all font-mono text-lg tracking-widest text-center"
+                    value={tcKimlik}
+                    onChange={(e) => setTcKimlik(e.target.value.replace(/\D/g, ''))}
+                    required
+                  />
+                </div>
+                
+                <button 
+                  type="submit" 
+                  disabled={cksLoading || tcKimlik.length !== 11}
+                  className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {cksLoading ? (
+                    <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Bağlanıyor...</>
+                  ) : (
+                    <>Tarlalarımı Çek</>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="card mb-8">
@@ -157,42 +250,47 @@ export default function Fields() {
       {fields.length === 0 ? (
         <EmptyState
           title="Henüz tarla eklenmemiş"
-          description="İlk tarlanızı ekleyerek maliyet takibine başlayın."
-          actionLabel="Tarla Ekle"
+          description="E-Devlet üzerinden ÇKS tarlalarınızı aktarabilir veya elle ekleyebilirsiniz."
+          actionLabel="ÇKS ile Aktar"
           actionTo="#"
+          onClick={() => setShowCksModal(true)}
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {fields.map((f) => (
-            <div key={f._id} className="card flex flex-col">
+            <div key={f._id} className="card flex flex-col hover:shadow-xl transition-shadow border-t-4 border-t-primary-500">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-earth-900">{f.fieldName}</h3>
-                  <p className="mt-1 text-sm text-earth-500">{f.location || 'Konum belirtilmedi'}</p>
-                </div>
-                <span className="badge bg-primary-100 text-primary-800">{f.cropType}</span>
-              </div>
-              
-              <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-earth-500">Alan</p>
-                  <p className="font-semibold">{f.areaDecare} dekar</p>
-                </div>
-                <div>
-                  <p className="text-earth-500">Harita Verisi</p>
-                  <p className="font-semibold">
-                    {f.polygon && f.polygon.coordinates ? '✅ Çizildi' : '❌ Çizilmedi'}
+                  <p className="mt-1 text-sm text-earth-500 flex items-center gap-1">
+                    <svg className="w-4 h-4 text-earth-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    {f.location || 'Konum belirtilmedi'}
                   </p>
                 </div>
+                <span className="badge bg-primary-100 text-primary-800 font-bold px-3 py-1 shadow-sm">{f.cropType}</span>
               </div>
               
-              {f.notes && <p className="mt-3 text-sm text-earth-600">{f.notes}</p>}
+              <div className="mt-5 grid grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                <div className="flex flex-col">
+                  <span className="text-xs text-earth-500 uppercase tracking-wider font-bold mb-1">Büyüklük</span>
+                  <span className="font-black text-lg text-gray-800">{f.areaDecare} <span className="text-sm font-medium text-gray-500">dekar</span></span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-earth-500 uppercase tracking-wider font-bold mb-1">Harita (CBS)</span>
+                  <span className={`font-bold ${f.polygon && f.polygon.coordinates ? 'text-green-600' : 'text-amber-500'}`}>
+                    {f.polygon && f.polygon.coordinates ? '✓ Tanımlı' : '⚠ Çizilmedi'}
+                  </span>
+                </div>
+              </div>
               
-              <div className="mt-auto pt-4">
+              {f.notes && <p className="mt-4 text-sm text-earth-600 italic border-l-2 border-earth-300 pl-2">"{f.notes}"</p>}
+              
+              <div className="mt-auto pt-5">
                 <FieldWeather fieldId={f._id} />
                 
-                <div className="mt-4 flex gap-2 border-t border-earth-100 pt-4">
-                  <button onClick={() => handleDelete(f._id)} className="text-sm text-red-600 hover:text-red-700">
+                <div className="mt-4 flex gap-2 border-t border-earth-100 pt-4 justify-end">
+                  <button onClick={() => handleDelete(f._id)} className="text-sm text-red-600 hover:text-red-700 font-bold flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-md hover:bg-red-100 transition-colors">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     Sil
                   </button>
                 </div>

@@ -2,6 +2,9 @@ import User from '../models/User.js';
 import Field from '../models/Field.js';
 import SeasonRecord from '../models/SeasonRecord.js';
 import Asset from '../models/Asset.js';
+import Task from '../models/Task.js';
+import InventoryItem from '../models/InventoryItem.js';
+import SoilAnalysis from '../models/SoilAnalysis.js';
 import { asyncHandler } from '../middleware/auth.js';
 
 export const listUsers = asyncHandler(async (_req, res) => {
@@ -23,13 +26,16 @@ export const createUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Bu kullanıcı adı veya e-posta zaten kullanımda.' });
   }
 
+  const validRoles = ['admin', 'farmer', 'enterprise', 'ogm_officer', 'researcher', 'market_trader'];
+  const userRole = validRoles.includes(role) ? role : 'farmer';
+
   const passwordHash = await User.hashPassword(password);
   const user = await User.create({
     username: username.toLowerCase().trim(),
     email: email.toLowerCase().trim(),
     passwordHash,
     fullName,
-    role: role === 'admin' ? 'admin' : 'farmer',
+    role: userRole,
     isVerified: true, // Admin tarafından eklendiği için anında onaylı
   });
   res.status(201).json({
@@ -45,7 +51,12 @@ export const updateUser = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
   }
   if (fullName) user.fullName = fullName;
-  if (role) user.role = role === 'admin' ? 'admin' : 'farmer';
+  if (role) {
+    const validRoles = ['admin', 'farmer', 'enterprise', 'ogm_officer', 'researcher', 'market_trader'];
+    if (validRoles.includes(role)) {
+      user.role = role;
+    }
+  }
   if (typeof isActive === 'boolean') user.isActive = isActive;
   if (password) user.passwordHash = await User.hashPassword(password);
   await user.save();
@@ -64,22 +75,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Kendi hesabınızı silemezsiniz' });
   }
   
-  // Clean up all related data to prevent orphaned documents
-  const mongoose = await import('mongoose');
-  const Task = mongoose.model('Task');
-  const InventoryItem = mongoose.model('InventoryItem');
-  
-  // Modelin yüklenmiş olduğundan emin olmak için try-catch veya doğrudan import kullanabiliriz
-  // Ancak model daha önce register edilmişse mongoose.model() sorunsuzca çalışır.
-  let SoilAnalysis;
-  try {
-    SoilAnalysis = mongoose.model('SoilAnalysis');
-  } catch(e) {
-    // Model henüz require edilmemişse (nadiren)
-    const sa = await import('../models/SoilAnalysis.js');
-    SoilAnalysis = sa.default;
-  }
-  
+  // Clean up all related data to prevent orphaned documents  
   await Field.deleteMany({ userId: user._id });
   await SeasonRecord.deleteMany({ userId: user._id });
   await Asset.deleteMany({ userId: user._id });

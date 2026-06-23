@@ -1,36 +1,50 @@
-import Field from '../models/Field.js';
-import SeasonRecord, { SEASON_PERIODS } from '../models/SeasonRecord.js';
+import Asset from '../models/Asset.js';
 import {
   buildSeasonLabel,
   calculateSeasonTotals,
 } from '../utils/calculations.js';
-import InventoryItem from '../models/InventoryItem.js';
 import { asyncHandler } from '../middleware/auth.js';
 import fs from 'fs';
 import csv from 'csv-parser';
 
+export const SEASON_PERIODS = ['Yaz', 'Kış', 'İlkbahar', 'Sonbahar'];
+
 async function getFieldForUser(fieldId, user) {
-  const field = await Field.findById(fieldId);
+  const field = await Asset.findOne({ _id: fieldId, type: 'Land' });
   if (!field) return null;
   if (user.role !== 'admin' && !field.userId.equals(user._id)) return null;
   return field;
 }
 
 export const listSeasons = asyncHandler(async (req, res) => {
-  const filter = req.user.role === 'admin' && req.query.userId
-    ? { userId: req.query.userId }
-    : { userId: req.user._id };
+  const filter = { type: 'PlantingSeason' };
+  if (req.user.role === 'admin' && req.query.userId) {
+    filter.userId = req.query.userId;
+  } else {
+    filter.userId = req.user._id;
+  }
   if (req.query.fieldId) filter.fieldId = req.query.fieldId;
-  const seasons = await SeasonRecord.find(filter)
-    .populate('fieldId', 'fieldName cropType areaDecare')
+  
+  const seasons = await Asset.find(filter)
+    .populate('fieldId', 'name cropType areaDecare')
     .sort({ year: -1, seasonPeriod: -1 });
-  res.json({ success: true, data: seasons });
+    
+  // Map populated field name to fieldName for frontend compatibility
+  const mappedSeasons = seasons.map(s => {
+    const obj = s.toObject();
+    if (obj.fieldId && obj.fieldId.name) {
+      obj.fieldId.fieldName = obj.fieldId.name;
+    }
+    return obj;
+  });
+  
+  res.json({ success: true, data: mappedSeasons });
 });
 
 export const getSeason = asyncHandler(async (req, res) => {
-  const season = await SeasonRecord.findById(req.params.id).populate(
+  const season = await Asset.findOne({ _id: req.params.id, type: 'PlantingSeason' }).populate(
     'fieldId',
-    'fieldName cropType areaDecare location'
+    'name cropType areaDecare location'
   );
   if (!season) {
     return res.status(404).json({ success: false, error: 'Sezon kaydı bulunamadı' });
@@ -38,7 +52,13 @@ export const getSeason = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin' && !season.userId.equals(req.user._id)) {
     return res.status(403).json({ success: false, error: 'Bu kayda erişim yok' });
   }
-  res.json({ success: true, data: season });
+  
+  const obj = season.toObject();
+  if (obj.fieldId && obj.fieldId.name) {
+    obj.fieldId.fieldName = obj.fieldId.name;
+  }
+  
+  res.json({ success: true, data: obj });
 });
 
 export const createSeason = asyncHandler(async (req, res) => {
@@ -59,12 +79,12 @@ export const createSeason = asyncHandler(async (req, res) => {
   if (inputs && inputs.length > 0) {
     for (const input of inputs) {
       if (input.inventoryItemId) {
-        const item = await InventoryItem.findById(input.inventoryItemId);
-        if (!item) {
+        const item = await Asset.findById(input.inventoryItemId);
+        if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
           return res.status(404).json({ success: false, error: `${input.name} depoda bulunamadı` });
         }
-        if (item.totalQuantity < input.amount) {
-          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.totalQuantity} ${item.unit})` });
+        if (item.currentQuantity < input.amount) {
+          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.currentQuantity} ${item.unit})` });
         }
         inventoryUpdates.push({ item, deduction: input.amount });
       }
@@ -73,7 +93,7 @@ export const createSeason = asyncHandler(async (req, res) => {
 
   // Stokları düş
   for (const update of inventoryUpdates) {
-    update.item.totalQuantity -= update.deduction;
+    update.item.currentQuantity -= update.deduction;
     await update.item.save();
   }
 
@@ -81,44 +101,60 @@ export const createSeason = asyncHandler(async (req, res) => {
     inputs || [],
     field.areaDecare
   );
-  const season = await SeasonRecord.create({
-    fieldId: field._id,
-    userId: field.userId,
-    year,
-    seasonPeriod,
-    seasonLabel: buildSeasonLabel(year, seasonPeriod),
-    inputs: normalizedInputs,
-    totalCost,
-    costPerDecare,
-    harvestQuantity: 0,
-    unitSalePrice: 0,
-    totalIncome: 0,
-    netProfit: -totalCost, // Başlangıçta gelir olmadığı için net kar eksidir
-    carbonFootprint: carbonFootprint || 0,
-    notes: notes || '',
-  });
-  const populated = await season.populate('fieldId', 'fieldName cropType areaDecare');
-  res.status(201).json({ success: true, data: populated });
+  
+  try {
+    const season = await Asset.create({
+      type: 'PlantingSeason',
+      name: buildSeasonLabel(year, seasonPeriod),
+      fieldId: field._id,
+      userId: field.userId,
+      year,
+      seasonPeriod,
+      inputs: normalizedInputs,
+      totalCost,
+      costPerDecare,
+      harvestQuantity: 0,
+      unitSalePrice: 0,
+      totalIncome: 0,
+      netProfit: -totalCost,
+      notes: notes || '',
+    });
+    
+    // Virtual alan gibi seasonLabel ekleyelim (frontend bekliyor)
+    season.seasonLabel = season.name;
+    const populated = await season.populate('fieldId', 'name cropType areaDecare');
+    const obj = populated.toObject();
+    obj.seasonLabel = obj.name;
+    if (obj.fieldId) obj.fieldId.fieldName = obj.fieldId.name;
+
+    res.status(201).json({ success: true, data: obj });
+  } catch (error) {
+    for (const update of inventoryUpdates) {
+      update.item.currentQuantity += update.deduction;
+      await update.item.save();
+    }
+    throw error;
+  }
 });
 
 export const updateSeason = asyncHandler(async (req, res) => {
-  const season = await SeasonRecord.findById(req.params.id);
+  const season = await Asset.findOne({ _id: req.params.id, type: 'PlantingSeason' });
   if (!season) {
     return res.status(404).json({ success: false, error: 'Sezon kaydı bulunamadı' });
   }
   if (req.user.role !== 'admin' && !season.userId.equals(req.user._id)) {
     return res.status(403).json({ success: false, error: 'Bu kayda erişim yok' });
   }
-  const field = await Field.findById(season.fieldId);
+  const field = await Asset.findById(season.fieldId);
   const { year, seasonPeriod, inputs, notes, harvestQuantity, unitSalePrice } = req.body;
   
   if (inputs) {
     // 1. Eski inputları iade et
     for (const oldInput of season.inputs) {
       if (oldInput.inventoryItemId) {
-        const item = await InventoryItem.findById(oldInput.inventoryItemId);
+        const item = await Asset.findById(oldInput.inventoryItemId);
         if (item) {
-          item.totalQuantity += oldInput.amount;
+          item.currentQuantity += oldInput.amount;
           await item.save();
         }
       }
@@ -128,30 +164,29 @@ export const updateSeason = asyncHandler(async (req, res) => {
     const inventoryUpdates = [];
     for (const input of inputs) {
       if (input.inventoryItemId) {
-        const item = await InventoryItem.findById(input.inventoryItemId);
-        if (!item) {
+        const item = await Asset.findById(input.inventoryItemId);
+        if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
           return res.status(404).json({ success: false, error: `${input.name} depoda bulunamadı` });
         }
-        if (item.totalQuantity < input.amount) {
-          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.totalQuantity} ${item.unit})` });
+        if (item.currentQuantity < input.amount) {
+          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.currentQuantity} ${item.unit})` });
         }
         inventoryUpdates.push({ item, deduction: input.amount });
       }
     }
 
     for (const update of inventoryUpdates) {
-      update.item.totalQuantity -= update.deduction;
+      update.item.currentQuantity -= update.deduction;
       await update.item.save();
     }
 
-    const { inputs: normalizedInputs, totalCost, costPerDecare, carbonFootprint } = calculateSeasonTotals(
+    const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(
       inputs,
-      field.areaDecare
+      field ? field.areaDecare : 1
     );
     season.inputs = normalizedInputs;
     season.totalCost = totalCost;
     season.costPerDecare = costPerDecare;
-    season.carbonFootprint = carbonFootprint || 0;
   }
 
   if (year) season.year = year;
@@ -170,14 +205,44 @@ export const updateSeason = asyncHandler(async (req, res) => {
   season.netProfit = season.totalIncome - season.totalCost;
 
   if (notes !== undefined) season.notes = notes;
-  season.seasonLabel = buildSeasonLabel(season.year, season.seasonPeriod);
-  await season.save();
-  const populated = await season.populate('fieldId', 'fieldName cropType areaDecare');
-  res.json({ success: true, data: populated });
+  season.name = buildSeasonLabel(season.year, season.seasonPeriod);
+  
+  try {
+    await season.save();
+    const populated = await season.populate('fieldId', 'name cropType areaDecare');
+    const obj = populated.toObject();
+    obj.seasonLabel = obj.name;
+    if (obj.fieldId) obj.fieldId.fieldName = obj.fieldId.name;
+    res.json({ success: true, data: obj });
+  } catch (error) {
+    if (inputs) {
+      // Return new inputs to inventory
+      for (const input of inputs) {
+        if (input.inventoryItemId) {
+          const item = await Asset.findById(input.inventoryItemId);
+          if (item) {
+            item.currentQuantity += input.amount;
+            await item.save();
+          }
+        }
+      }
+      // Re-deduct old inputs
+      for (const oldInput of season.inputs) {
+        if (oldInput.inventoryItemId) {
+          const item = await Asset.findById(oldInput.inventoryItemId);
+          if (item) {
+            item.currentQuantity -= oldInput.amount;
+            await item.save();
+          }
+        }
+      }
+    }
+    throw error;
+  }
 });
 
 export const deleteSeason = asyncHandler(async (req, res) => {
-  const season = await SeasonRecord.findById(req.params.id);
+  const season = await Asset.findOne({ _id: req.params.id, type: 'PlantingSeason' });
   if (!season) {
     return res.status(404).json({ success: false, error: 'Sezon kaydı bulunamadı' });
   }
@@ -189,9 +254,9 @@ export const deleteSeason = asyncHandler(async (req, res) => {
   if (season.inputs && season.inputs.length > 0) {
     for (const input of season.inputs) {
       if (input.inventoryItemId) {
-        const item = await InventoryItem.findById(input.inventoryItemId);
+        const item = await Asset.findById(input.inventoryItemId);
         if (item) {
-          item.totalQuantity += input.amount;
+          item.currentQuantity += input.amount;
           await item.save();
         }
       }
@@ -256,28 +321,30 @@ export const importSeasons = asyncHandler(async (req, res) => {
             const inputs = [];
             const categories = ['Tohum', 'Gübre', 'Yakıt', 'İlaç', 'İşçilik'];
             
+            const inventoryUpdates = [];
             for (const cat of categories) {
               const amount = parseFloat(row[`${cat}_Miktar`]) || 0;
               const unitPrice = parseFloat(row[`${cat}_Fiyat`]) || 0;
               if (amount > 0 && unitPrice > 0) {
                 let inventoryItemId = null;
                 
-                // Stok kontrolü ve düşme
-                const items = await InventoryItem.find({ 
+                const items = await Asset.find({ 
                   userId: field.userId, 
+                  type: { $in: ['Inventory', 'Material'] },
                   category: cat,
-                  totalQuantity: { $gte: amount }
-                }).sort({ totalQuantity: -1 });
+                  currentQuantity: { $gte: amount }
+                }).sort({ currentQuantity: -1 });
 
                 if (items.length > 0) {
                   const selectedItem = items[0];
-                  selectedItem.totalQuantity -= amount;
+                  selectedItem.currentQuantity -= amount;
                   await selectedItem.save();
                   inventoryItemId = selectedItem._id;
+                  inventoryUpdates.push({ item: selectedItem, deduction: amount });
                 }
 
                 inputs.push({
-                  name: inventoryItemId ? items[0].itemName : cat,
+                  name: inventoryItemId ? items[0].name : cat,
                   category: cat,
                   amount,
                   unitPrice,
@@ -287,28 +354,45 @@ export const importSeasons = asyncHandler(async (req, res) => {
               }
             }
 
-            const { inputs: normalizedInputs, totalCost, costPerDecare, carbonFootprint } = calculateSeasonTotals(
+            const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(
               inputs,
               field.areaDecare
             );
 
-            // Eğer kayıt varsa (upsert), eski kayıtların stoklarını iade etmemiz gerekirdi ancak bu basit import versiyonu 
-            // üzerine yazmayı desteklediğinden şimdilik doğrudan güncelliyoruz.
-            await SeasonRecord.findOneAndUpdate(
-              { fieldId: field._id, year, seasonPeriod },
-              {
-                userId: field.userId,
-                seasonLabel: buildSeasonLabel(year, seasonPeriod),
-                inputs: normalizedInputs,
-                totalCost,
-                costPerDecare,
-                carbonFootprint: carbonFootprint || 0,
-                notes: 'CSV ile içe aktarıldı'
-              },
-              { upsert: true, new: true }
-            );
+            try {
+              const existingSeason = await Asset.findOne({ fieldId: field._id, year, seasonPeriod, type: 'PlantingSeason' });
+              if (existingSeason && existingSeason.inputs) {
+                for (const oldInput of existingSeason.inputs) {
+                  if (oldInput.inventoryItemId) {
+                    const item = await Asset.findById(oldInput.inventoryItemId);
+                    if (item) {
+                      item.currentQuantity += oldInput.amount;
+                      await item.save();
+                    }
+                  }
+                }
+              }
 
-            successCount++;
+              await Asset.findOneAndUpdate(
+                { fieldId: field._id, year, seasonPeriod, type: 'PlantingSeason' },
+                {
+                  userId: field.userId,
+                  name: buildSeasonLabel(year, seasonPeriod),
+                  inputs: normalizedInputs,
+                  totalCost,
+                  costPerDecare,
+                  notes: 'CSV ile içe aktarıldı'
+                },
+                { upsert: true, new: true }
+              );
+              successCount++;
+            } catch (err) {
+              for (const update of inventoryUpdates) {
+                update.item.currentQuantity += update.deduction;
+                await update.item.save();
+              }
+              throw err;
+            }
           } catch (rowErr) {
             errors.push(`Satır ${index + 1}: Hata - ${rowErr.message}`);
           }

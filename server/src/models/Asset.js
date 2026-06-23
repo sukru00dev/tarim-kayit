@@ -8,33 +8,53 @@ const assetSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    assetName: {
+    name: {
       type: String,
       required: true,
       trim: true,
     },
-    purchasePrice: {
-      type: Number,
+    type: {
+      type: String,
+      enum: ['Equipment', 'Material', 'Land', 'PlantAnimal', 'PlantingSeason', 'Inventory'],
       required: true,
-      min: 0,
+      index: true,
     },
-    purchaseYear: {
-      type: Number,
-      required: true,
-      min: 1950,
-      max: new Date().getFullYear(),
+    status: {
+      type: String,
+      enum: ['Active', 'Archived', 'Sold', 'Consumed', 'Maintenance'],
+      default: 'Active',
     },
-    usefulLifeYears: {
-      type: Number,
-      required: true,
-      min: 1,
-      default: 10, // Örneğin standart 10 yıl
-    },
-    salvageValue: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+
+    // --- Equipment Specific Fields (Amortisman / Demirbaş) ---
+    purchasePrice: { type: Number, min: 0 },
+    purchaseYear: { type: Number },
+    usefulLifeYears: { type: Number, min: 1 },
+    salvageValue: { type: Number, min: 0, default: 0 },
+
+    // --- Material & Inventory Specific Fields (Sarf Malzemesi / Envanter) ---
+    category: { type: String, trim: true }, // Tohum, Gübre, İlaç, Yakıt vb.
+    unit: { type: String, trim: true }, // kg, litre, adet
+    currentQuantity: { type: Number, min: 0, default: 0 },
+    unitPrice: { type: Number, min: 0 },
+
+    // --- Land Specific Fields (Tarla / Orman Parseli) ---
+    areaDecare: { type: Number, min: 0 },
+    cropType: { type: String, trim: true }, 
+    polygon: { type: mongoose.Schema.Types.Mixed }, 
+
+    // --- Planting Season Specific Fields ---
+    fieldId: { type: mongoose.Schema.Types.ObjectId, ref: 'Asset' }, // Land'e referans
+    year: { type: Number },
+    seasonPeriod: { type: String, enum: ['Yaz', 'Kış', 'İlkbahar', 'Sonbahar'] },
+    totalCost: { type: Number, min: 0, default: 0 },
+    costPerDecare: { type: Number, min: 0, default: 0 },
+    harvestQuantity: { type: Number, min: 0, default: 0 },
+    unitSalePrice: { type: Number, min: 0, default: 0 },
+    totalIncome: { type: Number, min: 0, default: 0 },
+    netProfit: { type: Number, default: 0 },
+    inputs: { type: [mongoose.Schema.Types.Mixed], default: [] },
+
+    // --- Ortak Alanlar ---
     notes: {
       type: String,
       trim: true,
@@ -47,10 +67,10 @@ const assetSchema = new mongoose.Schema(
   }
 );
 
-// Yıllık amortisman (yıpranma) payını hesaplayan sanal alan
+// Yıllık amortisman (yıpranma) payını hesaplayan sanal alan (Sadece Equipment için mantıklıdır)
 assetSchema.virtual('annualDepreciation').get(function () {
-  if (this.usefulLifeYears > 0) {
-    return (this.purchasePrice - this.salvageValue) / this.usefulLifeYears;
+  if (this.type === 'Equipment' && this.usefulLifeYears > 0 && this.purchasePrice > 0) {
+    return (this.purchasePrice - (this.salvageValue || 0)) / this.usefulLifeYears;
   }
   return 0;
 });

@@ -29,23 +29,24 @@ function StatCard({ title, price, unit, changePercent }) {
 export default function Market() {
   const [latestPrices, setLatestPrices] = useState([]);
   const [selectedCommodity, setSelectedCommodity] = useState('Buğday');
+  const [selectedSource, setSelectedSource] = useState('TURIB'); // Yeni: Kaynak seçimi
   const [historyData, setHistoryData] = useState([]);
   const [historyUnit, setHistoryUnit] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchLatest();
-  }, []);
+    fetchLatest(selectedSource);
+  }, [selectedSource]);
 
   useEffect(() => {
     if (selectedCommodity) {
-      fetchHistory(selectedCommodity);
+      fetchHistory(selectedCommodity, selectedSource);
     }
-  }, [selectedCommodity]);
+  }, [selectedCommodity, selectedSource]);
 
-  const fetchLatest = async () => {
+  const fetchLatest = async (source) => {
     try {
-      const res = await api.get('/market/latest');
+      const res = await api.get(`/market/latest?source=${source}`);
       if (res.data.success) {
         setLatestPrices(res.data.data);
         if (res.data.data.length > 0 && !selectedCommodity) {
@@ -57,10 +58,10 @@ export default function Market() {
     }
   };
 
-  const fetchHistory = async (commodity) => {
+  const fetchHistory = async (commodity, source) => {
     setLoading(true);
     try {
-      const res = await api.get(`/market/history/${encodeURIComponent(commodity)}`);
+      const res = await api.get(`/market/history/${encodeURIComponent(commodity)}?source=${source}`);
       if (res.data.success) {
         setHistoryData(res.data.data);
         setHistoryUnit(res.data.unit);
@@ -84,6 +85,30 @@ export default function Market() {
             </h1>
             <p className="mt-2 text-sm text-slate-400 font-medium tracking-wide">Tarımsal Emtia ve Girdi Fiyatları Analiz Ekranı</p>
           </div>
+          
+          {/* Borsa (Source) Seçici */}
+          <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 shadow-inner">
+            <button
+              onClick={() => setSelectedSource('TURIB')}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                selectedSource === 'TURIB' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              TÜRİB (Türkiye)
+            </button>
+            <button
+              onClick={() => setSelectedSource('CME')}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                selectedSource === 'CME' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              CME (Global)
+            </button>
+          </div>
         </div>
 
       {/* Summary Cards */}
@@ -103,7 +128,7 @@ export default function Market() {
         {/* Chart Section */}
         <div className="lg:col-span-2 bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-6">
           <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
-            <h2 className="text-xl font-bold text-white">30 Günlük Teknik Analiz</h2>
+            <h2 className="text-xl font-bold text-white">30 Günlük Teknik Analiz ({selectedSource})</h2>
             <select 
               value={selectedCommodity} 
               onChange={(e) => setSelectedCommodity(e.target.value)}
@@ -156,7 +181,7 @@ export default function Market() {
         {/* All Commodities Table */}
         <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden">
           <div className="p-6 border-b border-slate-700 bg-slate-800/50">
-            <h2 className="text-xl font-bold text-white">Canlı Piyasalar</h2>
+            <h2 className="text-xl font-bold text-white">Canlı Piyasalar ({selectedSource})</h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             <table className="min-w-full divide-y divide-slate-700">

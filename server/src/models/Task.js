@@ -6,6 +6,18 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
+    },
+    targetModel: {
+      type: String,
+      enum: ['Field', 'Asset', 'InventoryItem', 'SeasonRecord'],
+      required: false,
+    },
+    targetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false,
+      refPath: 'targetModel',
+      index: true,
     },
     title: {
       type: String,
