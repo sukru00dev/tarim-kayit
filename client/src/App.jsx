@@ -44,8 +44,6 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/features" element={<Features />} />
         <Route path="/pricing" element={<Pricing />} />
-        <Route path="/report" element={<Report />} />
-        <Route path="/market" element={<Market />} />
         <Route path="/contact" element={<Contact />} />
       </Route>
       <Route path="/login" element={<Login />} />
@@ -70,6 +68,7 @@ export default function App() {
         <Route path="/assets" element={<Assets />} />
         <Route path="/soil-analysis" element={<SoilAnalysis />} />
         <Route path="/report" element={<Report />} />
+        <Route path="/market" element={<Market />} />
         <Route
           path="/admin"
           element={
