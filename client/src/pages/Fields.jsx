@@ -1,6 +1,58 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client.js';
 import { EmptyState } from '../components/KpiCard.jsx';
+import MapPolygonSelector from '../components/MapPolygonSelector.jsx';
+
+// A component to display weather data for a field
+function FieldWeather({ fieldId }) {
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadWeather = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/weather/${fieldId}`);
+      setWeather(res.data.data);
+    } catch (err) {
+      setError('Hava durumu yüklenemedi');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!weather && !loading && !error) {
+    return (
+      <button onClick={loadWeather} className="text-sm text-blue-600 hover:underline">
+        🌤️ Hava Durumunu Yükle
+      </button>
+    );
+  }
+
+  if (loading) return <span className="text-sm text-gray-500">Yükleniyor...</span>;
+  if (error) return <span className="text-sm text-red-500">{error}</span>;
+
+  return (
+    <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-semibold text-blue-900">Mevcut Sıcaklık: {weather.current.temperature}°C</span>
+      </div>
+      {weather.alerts && weather.alerts.length > 0 && (
+        <div className="space-y-1 mt-2">
+          {weather.alerts.map((alert, i) => (
+            <div key={i} className={`text-xs p-2 rounded ${
+              alert.type === 'danger' ? 'bg-red-100 text-red-800' :
+              alert.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {alert.message}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Fields() {
   const [fields, setFields] = useState([]);
@@ -12,6 +64,7 @@ export default function Fields() {
     areaDecare: '',
     location: '',
     notes: '',
+    polygon: null,
   });
   const [error, setError] = useState('');
 
@@ -26,7 +79,7 @@ export default function Fields() {
     setError('');
     try {
       await api.post('/fields', { ...form, areaDecare: Number(form.areaDecare) });
-      setForm({ fieldName: '', cropType: '', areaDecare: '', location: '', notes: '' });
+      setForm({ fieldName: '', cropType: '', areaDecare: '', location: '', notes: '', polygon: null });
       setShowForm(false);
       load();
     } catch (err) {
@@ -57,7 +110,7 @@ export default function Fields() {
             Geri Dön
           </button>
           <h1 className="text-2xl font-bold text-earth-900">Tarlalarım</h1>
-          <p className="mt-1 text-earth-600">Tarla bilgilerinizi yönetin</p>
+          <p className="mt-1 text-earth-600">Tarla bilgilerinizi yönetin ve hava durumunu takip edin.</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
           {showForm ? 'İptal' : '+ Yeni Tarla'}
@@ -82,9 +135,16 @@ export default function Fields() {
               <input type="number" step="0.1" min="0.1" className="input" value={form.areaDecare} onChange={(e) => setForm({ ...form, areaDecare: e.target.value })} required />
             </div>
             <div>
-              <label className="label">Konum</label>
-              <input className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              <label className="label">Konum (Metin)</label>
+              <input className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Örn: Kuzey Parsel" />
             </div>
+            
+            <div className="sm:col-span-2">
+              <label className="label mb-2">Harita Üzerinde İşaretle (Opsiyonel)</label>
+              <p className="text-xs text-gray-500 mb-2">Tarlanızın sınırlarını haritada sağ üstteki poligon ikonuna tıklayarak çizebilirsiniz.</p>
+              <MapPolygonSelector onPolygonChange={(geo) => setForm({ ...form, polygon: geo })} />
+            </div>
+
             <div className="sm:col-span-2">
               <label className="label">Notlar</label>
               <textarea className="input" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
@@ -104,7 +164,7 @@ export default function Fields() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           {fields.map((f) => (
-            <div key={f._id} className="card">
+            <div key={f._id} className="card flex flex-col">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-earth-900">{f.fieldName}</h3>
@@ -112,21 +172,30 @@ export default function Fields() {
                 </div>
                 <span className="badge bg-primary-100 text-primary-800">{f.cropType}</span>
               </div>
+              
               <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-earth-500">Alan</p>
                   <p className="font-semibold">{f.areaDecare} dekar</p>
                 </div>
                 <div>
-                  <p className="text-earth-500">Mahsul</p>
-                  <p className="font-semibold">{f.cropType}</p>
+                  <p className="text-earth-500">Harita Verisi</p>
+                  <p className="font-semibold">
+                    {f.polygon && f.polygon.coordinates ? '✅ Çizildi' : '❌ Çizilmedi'}
+                  </p>
                 </div>
               </div>
+              
               {f.notes && <p className="mt-3 text-sm text-earth-600">{f.notes}</p>}
-              <div className="mt-4 flex gap-2 border-t border-earth-100 pt-4">
-                <button onClick={() => handleDelete(f._id)} className="text-sm text-red-600 hover:text-red-700">
-                  Sil
-                </button>
+              
+              <div className="mt-auto pt-4">
+                <FieldWeather fieldId={f._id} />
+                
+                <div className="mt-4 flex gap-2 border-t border-earth-100 pt-4">
+                  <button onClick={() => handleDelete(f._id)} className="text-sm text-red-600 hover:text-red-700">
+                    Sil
+                  </button>
+                </div>
               </div>
             </div>
           ))}

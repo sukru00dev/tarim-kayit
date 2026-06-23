@@ -12,6 +12,10 @@ const fieldSchema = new mongoose.Schema(
     cropType: { type: String, required: true, trim: true },
     areaDecare: { type: Number, required: true, min: 0.1 },
     location: { type: String, trim: true, default: '' },
+    polygon: {
+      type: { type: String, enum: ['Polygon'], required: false },
+      coordinates: { type: [[[Number]]], required: false },
+    },
     notes: { type: String, trim: true, default: '' },
   },
   { timestamps: true }

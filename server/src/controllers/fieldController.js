@@ -26,7 +26,7 @@ export const getField = asyncHandler(async (req, res) => {
 });
 
 export const createField = asyncHandler(async (req, res) => {
-  const { fieldName, cropType, areaDecare, location, notes } = req.body;
+  const { fieldName, cropType, areaDecare, location, notes, polygon } = req.body;
   if (!fieldName || !cropType || !areaDecare) {
     return res.status(400).json({ success: false, error: 'Tarla adı, mahsul ve alan zorunlu' });
   }
@@ -37,6 +37,7 @@ export const createField = asyncHandler(async (req, res) => {
     cropType,
     areaDecare,
     location: location || '',
+    polygon: polygon || undefined,
     notes: notes || '',
   });
   res.status(201).json({ success: true, data: field });
@@ -47,11 +48,12 @@ export const updateField = asyncHandler(async (req, res) => {
   if (!field) {
     return res.status(404).json({ success: false, error: 'Tarla bulunamadı' });
   }
-  const { fieldName, cropType, areaDecare, location, notes } = req.body;
+  const { fieldName, cropType, areaDecare, location, notes, polygon } = req.body;
   if (fieldName) field.fieldName = fieldName;
   if (cropType) field.cropType = cropType;
   if (areaDecare) field.areaDecare = areaDecare;
   if (location !== undefined) field.location = location;
+  if (polygon !== undefined) field.polygon = polygon;
   if (notes !== undefined) field.notes = notes;
   await field.save();
   res.json({ success: true, data: field });
