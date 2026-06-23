@@ -1,64 +1,4 @@
 import MarketPrice from '../models/MarketPrice.js';
-import yahooFinance from 'yahoo-finance2';
-
-// Helper mapping for Yahoo Finance futures symbols
-const Tickers = {
-  'Buğday': 'ZW=F', // CBOT Wheat
-  'Mısır': 'ZC=F',  // CBOT Corn
-  'Soya Fasulyesi': 'ZS=F' // CBOT Soybeans
-};
-
-// Conversion factors: 1 bushel to kg
-const BushelToKg = {
-  'Buğday': 27.2155,
-  'Mısır': 25.4012,
-  'Soya Fasulyesi': 27.2155
-};
-
-// Internal function to sync data from Yahoo Finance
-const syncDataInternal = async () => {
-  try {
-    // 1. Get USD/TRY exchange rate
-    const tryQuote = await yahooFinance.quote('TRY=X');
-    const usdTry = tryQuote.regularMarketPrice;
-
-    const commodities = ['Buğday', 'Mısır', 'Soya Fasulyesi'];
-    const newPrices = [];
-    
-    for (const comm of commodities) {
-      const ticker = Tickers[comm];
-      const quote = await yahooFinance.quote(ticker);
-      
-      // CBOT Grain Futures are usually priced in US Cents per Bushel
-      const priceCents = quote.regularMarketPrice;
-      const priceUsdBushel = priceCents / 100;
-
-      // Calculate TURIB equivalent (TL/kg)
-      const priceUsdKg = priceUsdBushel / BushelToKg[comm];
-      const priceTlKg = priceUsdKg * usdTry;
-
-      // Upsert CME record
-      const cmeRecord = await MarketPrice.findOneAndUpdate(
-        { commodity: comm, source: 'CME', date: { $gte: new Date().setHours(0,0,0,0) } },
-        { price: parseFloat(priceUsdBushel.toFixed(2)), unit: 'USD/Bushel', source: 'CME', date: new Date() },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-      newPrices.push(cmeRecord);
-
-      // Upsert TURIB record
-      const turibRecord = await MarketPrice.findOneAndUpdate(
-        { commodity: comm, source: 'TURIB', date: { $gte: new Date().setHours(0,0,0,0) } },
-        { price: parseFloat(priceTlKg.toFixed(2)), unit: 'TL/kg', source: 'TURIB', date: new Date() },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-      newPrices.push(turibRecord);
-    }
-    return newPrices;
-  } catch (error) {
-    console.error('Yahoo Finance sync failed:', error);
-    throw error;
-  }
-};
 
 // Get the latest prices for all commodities, grouped by source
 export const getLatestPrices = async (req, res) => {
@@ -66,20 +6,12 @@ export const getLatestPrices = async (req, res) => {
     const { source } = req.query; // 'TURIB', 'CME', 'Local_Hal'
     const filter = source ? { source } : {};
 
-    // Auto-sync if no data exists for today
-    const todayCount = await MarketPrice.countDocuments({
-      date: { $gte: new Date().setHours(0,0,0,0) },
-      source: source || 'TURIB'
-    });
-
-    if (todayCount === 0) {
-      await syncDataInternal().catch(e => console.error("Auto-sync error", e));
-    }
-
     const commodities = await MarketPrice.distinct('commodity', filter);
+    
     const results = [];
 
     for (const commodity of commodities) {
+      // Bulunan source(lar) için en güncel 2 kaydı getir
       const records = await MarketPrice.find({ commodity, ...filter })
         .sort({ date: -1 })
         .limit(2);
@@ -124,9 +56,10 @@ export const getCommodityHistory = async (req, res) => {
     if (source) filter.source = source;
 
     const records = await MarketPrice.find(filter)
-      .sort({ date: 1 }) // Ascending for charts
+      .sort({ date: 1 }) // Ascending for charts (oldest to newest)
       .limit(30);
 
+    // Format for Recharts { name: 'DD/MM', Fiyat: 10.5 }
     const formattedData = records.map(record => {
       const d = new Date(record.date);
       return {
@@ -144,11 +77,40 @@ export const getCommodityHistory = async (req, res) => {
   }
 };
 
-// Admin sync endpoint
+// Mock TÜRİB/CME fiyat senkronizasyonu
 export const syncMarketPrices = async (req, res) => {
   try {
-    const newPrices = await syncDataInternal();
-    res.json({ success: true, message: 'Borsa fiyatları senkronize edildi (Gerçek Veri)', data: newPrices });
+    // Burada normalde gerçek bir API'ye (örn. Bloomberg, TCMB, TÜRİB) istek atılır.
+    // Simülasyon amaçlı rastgele dalgalanma yaratıyoruz.
+    const commodities = ['Buğday', 'Mısır', 'Soya Fasulyesi'];
+    const sources = ['TURIB', 'CME'];
+    
+    const newPrices = [];
+    
+    for (const comm of commodities) {
+      for (const src of sources) {
+        const basePrice = src === 'CME' ? (comm === 'Soya Fasulyesi' ? 12.5 : 5.2) : (comm === 'Buğday' ? 9.5 : 8.2); // CME in USD, TURIB in TL
+        const fluctuation = (Math.random() * 0.4) - 0.2; // -0.2 to +0.2
+        
+        const mp = new MarketPrice({
+          commodity: comm,
+          price: parseFloat((basePrice + fluctuation).toFixed(2)),
+          unit: src === 'CME' ? 'USD/Bushel' : 'TL/kg',
+          source: src,
+          date: new Date()
+        });
+        
+        // Benzersiz index nedeniyle hata almamak için var olan bugünün kaydını ez
+        await MarketPrice.findOneAndUpdate(
+          { commodity: comm, source: src, date: { $gte: new Date().setHours(0,0,0,0) } },
+          { price: mp.price, unit: mp.unit, source: mp.source },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        newPrices.push(mp);
+      }
+    }
+    
+    res.json({ success: true, message: 'Borsa fiyatları senkronize edildi', data: newPrices });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Borsa senkronizasyonu başarısız' });
   }
