@@ -11,6 +11,7 @@ const navItems = [
   { to: '/soil-analysis', label: 'Toprak Analizi', icon: '🧪' },
   { to: '/inventory', label: 'Depo ve Envanter', icon: '📦' },
   { to: '/assets', label: 'Demirbaşlarım', icon: '🚜' },
+  { to: '/market', label: 'Piyasa & Borsa', icon: '📈' },
   { to: '/analytics', label: 'Karar Destek', icon: '💡' },
   { to: '/report', label: 'Rapor', icon: '📄' },
 ];

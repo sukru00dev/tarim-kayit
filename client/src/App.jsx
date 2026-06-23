@@ -16,6 +16,7 @@ import Income from './pages/Income.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Analytics from './pages/Analytics.jsx';
 import Report from './pages/Report.jsx';
+import Market from './pages/Market.jsx';
 import Admin from './pages/Admin.jsx';
 import Register from './pages/Register.jsx';
 import Verify from './pages/Verify.jsx';
@@ -43,6 +44,8 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/features" element={<Features />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/report" element={<Report />} />
+        <Route path="/market" element={<Market />} />
         <Route path="/contact" element={<Contact />} />
       </Route>
       <Route path="/login" element={<Login />} />

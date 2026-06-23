@@ -16,6 +16,7 @@ import inventoryRoutes from './routes/inventoryRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import soilRoutes from './routes/soilRoutes.js';
 import weatherRoutes from './routes/weatherRoutes.js';
+import marketRoutes from './routes/marketRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/soils', soilRoutes);
 app.use('/api/weather', weatherRoutes);
+app.use('/api/market', marketRoutes);
 
 app.use(errorHandler);
 
