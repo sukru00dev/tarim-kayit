@@ -40,6 +40,7 @@ const assetSchema = new mongoose.Schema(
     // --- Land Specific Fields (Tarla / Orman Parseli) ---
     areaDecare: { type: Number, min: 0 },
     cropType: { type: String, trim: true }, 
+    location: { type: String, trim: true },
     polygon: { type: mongoose.Schema.Types.Mixed }, 
 
     // --- Planting Season Specific Fields ---

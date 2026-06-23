@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, useMap } from 'react-leaflet';
-import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
+import 'leaflet-draw';
 
 // Fix for default Leaflet icon missing issues in webpack/vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -24,34 +24,72 @@ function MapController({ center, zoom }) {
   return null;
 }
 
+function DrawControlRaw({ onPolygonChange }) {
+  const map = useMap();
+  const featureGroupRef = useRef(new L.FeatureGroup());
+
+  useEffect(() => {
+    const featureGroup = featureGroupRef.current;
+    map.addLayer(featureGroup);
+
+    const drawControl = new L.Control.Draw({
+      position: 'topright',
+      edit: {
+        featureGroup: featureGroup,
+        remove: true
+      },
+      draw: {
+        rectangle: false,
+        circle: false,
+        circlemarker: false,
+        marker: false,
+        polyline: false,
+        polygon: {
+          allowIntersection: false,
+          drawError: { color: '#e1e100', message: '<strong>Hata:</strong> Kesişen poligon çizilemez!' },
+          shapeOptions: { color: '#16a34a' }
+        }
+      }
+    });
+    map.addControl(drawControl);
+
+    const handleCreated = (e) => {
+      featureGroup.clearLayers();
+      featureGroup.addLayer(e.layer);
+      onPolygonChange(e.layer.toGeoJSON().geometry);
+    };
+
+    const handleEdited = (e) => {
+      e.layers.eachLayer((layer) => {
+        onPolygonChange(layer.toGeoJSON().geometry);
+      });
+    };
+
+    const handleDeleted = () => {
+      onPolygonChange(null);
+    };
+
+    map.on(L.Draw.Event.CREATED, handleCreated);
+    map.on(L.Draw.Event.EDITED, handleEdited);
+    map.on(L.Draw.Event.DELETED, handleDeleted);
+
+    return () => {
+      map.removeControl(drawControl);
+      map.removeLayer(featureGroup);
+      map.off(L.Draw.Event.CREATED, handleCreated);
+      map.off(L.Draw.Event.EDITED, handleEdited);
+      map.off(L.Draw.Event.DELETED, handleDeleted);
+    };
+  }, [map, onPolygonChange]);
+
+  return null;
+}
+
 export default function MapPolygonSelector({ onPolygonChange }) {
-  const featureGroupRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [mapCenter, setMapCenter] = useState([39.92077, 32.85411]);
   const [mapZoom, setMapZoom] = useState(6);
-
-  const _onCreated = (e) => {
-    const layer = e.layer;
-    if (featureGroupRef.current) {
-      featureGroupRef.current.clearLayers();
-      featureGroupRef.current.addLayer(layer);
-    }
-    const geojson = layer.toGeoJSON();
-    onPolygonChange(geojson.geometry);
-  };
-
-  const _onEdited = (e) => {
-    const layers = e.layers;
-    layers.eachLayer((layer) => {
-      const geojson = layer.toGeoJSON();
-      onPolygonChange(geojson.geometry);
-    });
-  };
-
-  const _onDeleted = () => {
-    onPolygonChange(null);
-  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -125,31 +163,7 @@ export default function MapPolygonSelector({ onPolygonChange }) {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
-          <FeatureGroup ref={featureGroupRef}>
-            <EditControl
-              position="topright"
-              onCreated={_onCreated}
-              onEdited={_onEdited}
-              onDeleted={_onDeleted}
-              draw={{
-                rectangle: false,
-                circle: false,
-                circlemarker: false,
-                marker: false,
-                polyline: false,
-                polygon: {
-                  allowIntersection: false,
-                  drawError: {
-                    color: '#e1e100',
-                    message: '<strong>Hata:</strong> Kesişen poligon çizilemez!'
-                  },
-                  shapeOptions: {
-                    color: '#16a34a'
-                  }
-                }
-              }}
-            />
-          </FeatureGroup>
+          <DrawControlRaw onPolygonChange={onPolygonChange} />
         </MapContainer>
       </div>
     </div>

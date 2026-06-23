@@ -61,6 +61,8 @@ export default function Fields() {
   const [showCksModal, setShowCksModal] = useState(false);
   const [cksLoading, setCksLoading] = useState(false);
   const [tcKimlik, setTcKimlik] = useState('');
+  
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
     fieldName: '',
     cropType: '',
@@ -69,13 +71,11 @@ export default function Fields() {
     notes: '',
     polygon: null,
   });
+  
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   const load = () => {
-    // Phase 2 refactor sonrası tarlalar Asset tablosunda type: 'Land' olarak tutuluyor.
-    // Ancak Fields arayüzü geçiş sürecinde olduğu için backend /fields kullanıyor olabilir.
-    // Şimdilik mevcut API'yi çağırıyoruz. (CKS aktarımı Asset olarak atıyor)
     api.get('/fields').then((res) => setFields(res.data.data)).finally(() => setLoading(false));
   };
 
@@ -85,13 +85,38 @@ export default function Fields() {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/fields', { ...form, areaDecare: Number(form.areaDecare) });
+      if (editingId) {
+        await api.put(`/fields/${editingId}`, { ...form, areaDecare: Number(form.areaDecare) });
+      } else {
+        await api.post('/fields', { ...form, areaDecare: Number(form.areaDecare) });
+      }
       setForm({ fieldName: '', cropType: '', areaDecare: '', location: '', notes: '', polygon: null });
+      setEditingId(null);
       setShowForm(false);
       load();
     } catch (err) {
       setError(err.response?.data?.error || 'Kayıt başarısız');
     }
+  };
+
+  const handleEdit = (field) => {
+    setEditingId(field._id);
+    setForm({
+      fieldName: field.fieldName || '',
+      cropType: field.cropType || '',
+      areaDecare: field.areaDecare || '',
+      location: field.location || '',
+      notes: field.notes || '',
+      polygon: field.polygon || null,
+    });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm({ fieldName: '', cropType: '', areaDecare: '', location: '', notes: '', polygon: null });
   };
 
   const handleCksSync = async (e) => {
@@ -138,15 +163,15 @@ export default function Fields() {
             Geri Dön
           </button>
           <h1 className="text-2xl font-bold text-earth-900">Tarlalarım</h1>
-          <p className="mt-1 text-earth-600">Tarla bilgilerinizi yönetin ve e-Devlet ile senkronize edin.</p>
+          <p className="mt-1 text-earth-600">Tarla bilgilerinizi yönetin, haritada çizin ve e-Devlet ile senkronize edin.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <button onClick={() => setShowCksModal(true)} className="btn-secondary flex items-center justify-center gap-2 border-green-600 text-green-700 hover:bg-green-50">
             <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
             ÇKS'den Aktar
           </button>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-            {showForm ? 'İptal' : '+ Yeni Tarla'}
+          <button onClick={() => !showForm && setShowForm(true)} className="btn-primary">
+            + Yeni Tarla
           </button>
         </div>
       </div>
@@ -211,10 +236,15 @@ export default function Fields() {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="card mb-8">
-          <h2 className="font-semibold text-earth-900">Yeni Tarla Ekle</h2>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <form onSubmit={handleSubmit} className="card mb-8 border-t-4 border-t-primary-500 animate-in fade-in slide-in-from-top-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-bold text-lg text-earth-900">{editingId ? 'Tarlayı Düzenle' : 'Yeni Tarla Ekle'}</h2>
+            <button type="button" onClick={handleCancelForm} className="text-gray-400 hover:text-gray-600">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          {error && <p className="mb-4 text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>}
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="label">Tarla Adı</label>
               <input className="input" value={form.fieldName} onChange={(e) => setForm({ ...form, fieldName: e.target.value })} required />
@@ -229,12 +259,12 @@ export default function Fields() {
             </div>
             <div>
               <label className="label">Konum (Metin)</label>
-              <input className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Örn: Kuzey Parsel" />
+              <input className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Örn: Kuzey Parsel, Antalya" />
             </div>
             
             <div className="sm:col-span-2">
-              <label className="label mb-2">Harita Üzerinde İşaretle (Opsiyonel)</label>
-              <p className="text-xs text-gray-500 mb-2">Tarlanızın sınırlarını haritada sağ üstteki poligon ikonuna tıklayarak çizebilirsiniz.</p>
+              <label className="label mb-1">Harita Üzerinde Çizim (CBS)</label>
+              <p className="text-xs text-earth-500 mb-3">Tarlanızın sınırlarını sağ üstteki poligon ikonuna (⬟) tıklayarak haritada çizin. Bu sayede hava durumu tam o noktaya göre çekilecektir.</p>
               <MapPolygonSelector onPolygonChange={(geo) => setForm({ ...form, polygon: geo })} />
             </div>
 
@@ -243,7 +273,10 @@ export default function Fields() {
               <textarea className="input" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
           </div>
-          <button type="submit" className="btn-primary mt-4">Kaydet</button>
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" onClick={handleCancelForm} className="btn-secondary">İptal</button>
+            <button type="submit" className="btn-primary">{editingId ? 'Güncelle' : 'Kaydet'}</button>
+          </div>
         </form>
       )}
 
@@ -258,7 +291,7 @@ export default function Fields() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {fields.map((f) => (
-            <div key={f._id} className="card flex flex-col hover:shadow-xl transition-shadow border-t-4 border-t-primary-500">
+            <div key={f._id} className={`card flex flex-col hover:shadow-xl transition-shadow border-t-4 ${editingId === f._id ? 'border-t-blue-500 ring-2 ring-blue-100' : 'border-t-primary-500'}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-earth-900">{f.fieldName}</h3>
@@ -278,7 +311,7 @@ export default function Fields() {
                 <div className="flex flex-col">
                   <span className="text-xs text-earth-500 uppercase tracking-wider font-bold mb-1">Harita (CBS)</span>
                   <span className={`font-bold ${f.polygon && f.polygon.coordinates ? 'text-green-600' : 'text-amber-500'}`}>
-                    {f.polygon && f.polygon.coordinates ? '✓ Tanımlı' : '⚠ Çizilmedi'}
+                    {f.polygon && f.polygon.coordinates ? '✓ Çizildi' : '⚠ Çizilmedi'}
                   </span>
                 </div>
               </div>
@@ -289,6 +322,10 @@ export default function Fields() {
                 <FieldWeather fieldId={f._id} />
                 
                 <div className="mt-4 flex gap-2 border-t border-earth-100 pt-4 justify-end">
+                  <button onClick={() => handleEdit(f)} className="text-sm text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    Düzenle
+                  </button>
                   <button onClick={() => handleDelete(f._id)} className="text-sm text-red-600 hover:text-red-700 font-bold flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-md hover:bg-red-100 transition-colors">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     Sil
