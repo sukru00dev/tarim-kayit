@@ -1,10 +1,52 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { LineChart, BarChart3, BellRing, FileDown, ShieldCheck, Smartphone } from 'lucide-react';
+import api from '../api/client.js';
 
 export default function Landing() {
+  const [marketPrices, setMarketPrices] = useState([]);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const res = await api.get('/market/latest');
+        if (res.data && res.data.success) {
+          setMarketPrices(res.data.data.slice(0, 5));
+        }
+      } catch (error) {
+        console.error('Market prices fetch error:', error);
+      }
+    };
+    fetchPrices();
+  }, []);
   return (
     <div>
-      <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+      <section className="mx-auto max-w-6xl px-6 py-12 md:py-20">
+        {/* Market Ticker */}
+        {marketPrices.length > 0 && (
+          <div className="mb-12 border border-earth-200 bg-white rounded-2xl shadow-sm p-4 animate-fade-in-up">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex items-center gap-2 pr-4 sm:border-r border-earth-200">
+                <span className="text-xl">📈</span>
+                <span className="font-bold text-earth-900 text-sm">Canlı Borsa</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-6 flex-1 justify-center sm:justify-start">
+                {marketPrices.map((item, idx) => (
+                  <div key={idx} className="flex flex-col">
+                    <span className="text-xs font-semibold text-earth-500 uppercase tracking-wider">{item.commodity}</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-bold text-earth-900">{item.price} <span className="text-xs font-normal">{item.unit}</span></span>
+                      <span className={`text-xs font-bold ${item.changePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {item.changePercent >= 0 ? '▲' : '▼'} {Math.abs(item.changePercent)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div className="animate-fade-in-up">
             <span className="badge bg-primary-100 text-primary-800 px-3 py-1 text-sm font-semibold mb-4 inline-block shadow-sm">

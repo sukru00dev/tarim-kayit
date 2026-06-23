@@ -1,10 +1,8 @@
 import express from 'express';
 import { getLatestPrices, getCommodityHistory } from '../controllers/marketController.js';
-import { authenticate } from '../middleware/auth.js';
+// Public routes for market data
 
 const router = express.Router();
-
-router.use(authenticate);
 
 // Borsa özet ekranı: Tüm ürünlerin en güncel fiyatları
 router.get('/latest', getLatestPrices);
