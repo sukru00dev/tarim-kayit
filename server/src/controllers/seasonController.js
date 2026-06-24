@@ -77,17 +77,21 @@ export const createSeason = asyncHandler(async (req, res) => {
   // Envanter Kontrolü (Stok Yeterli mi?)
   const inventoryUpdates = [];
   if (inputs && inputs.length > 0) {
+    const deductionMap = {};
     for (const input of inputs) {
       if (input.inventoryItemId) {
-        const item = await Asset.findById(input.inventoryItemId);
-        if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
-          return res.status(404).json({ success: false, error: `${input.name} depoda bulunamadı` });
-        }
-        if (item.currentQuantity < input.amount) {
-          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.currentQuantity} ${item.unit})` });
-        }
-        inventoryUpdates.push({ item, deduction: input.amount });
+        deductionMap[input.inventoryItemId] = (deductionMap[input.inventoryItemId] || 0) + (Number(input.amount) || 0);
       }
+    }
+    for (const [itemId, totalDeduction] of Object.entries(deductionMap)) {
+      const item = await Asset.findById(itemId);
+      if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
+        return res.status(404).json({ success: false, error: `Seçili depo ürünü bulunamadı` });
+      }
+      if (item.currentQuantity < totalDeduction) {
+        return res.status(400).json({ success: false, error: `Depoda yeterli ${item.name} yok. (İstenen: ${totalDeduction}, Kalan: ${item.currentQuantity} ${item.unit})` });
+      }
+      inventoryUpdates.push({ item, deduction: totalDeduction });
     }
   }
 
@@ -162,17 +166,21 @@ export const updateSeason = asyncHandler(async (req, res) => {
 
     // 2. Yeni inputları kontrol et ve düş
     const inventoryUpdates = [];
+    const deductionMap = {};
     for (const input of inputs) {
       if (input.inventoryItemId) {
-        const item = await Asset.findById(input.inventoryItemId);
-        if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
-          return res.status(404).json({ success: false, error: `${input.name} depoda bulunamadı` });
-        }
-        if (item.currentQuantity < input.amount) {
-          return res.status(400).json({ success: false, error: `Depoda yeterli ${input.name} yok. (Kalan: ${item.currentQuantity} ${item.unit})` });
-        }
-        inventoryUpdates.push({ item, deduction: input.amount });
+        deductionMap[input.inventoryItemId] = (deductionMap[input.inventoryItemId] || 0) + (Number(input.amount) || 0);
       }
+    }
+    for (const [itemId, totalDeduction] of Object.entries(deductionMap)) {
+      const item = await Asset.findById(itemId);
+      if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
+        return res.status(404).json({ success: false, error: `Seçili depo ürünü bulunamadı` });
+      }
+      if (item.currentQuantity < totalDeduction) {
+        return res.status(400).json({ success: false, error: `Depoda yeterli ${item.name} yok. (İstenen: ${totalDeduction}, Kalan: ${item.currentQuantity} ${item.unit})` });
+      }
+      inventoryUpdates.push({ item, deduction: totalDeduction });
     }
 
     for (const update of inventoryUpdates) {
@@ -359,6 +367,7 @@ export const importSeasons = asyncHandler(async (req, res) => {
               field.areaDecare
             );
 
+            let refundedOldInputs = [];
             try {
               const existingSeason = await Asset.findOne({ fieldId: field._id, year, seasonPeriod, type: 'PlantingSeason' });
               if (existingSeason && existingSeason.inputs) {
@@ -368,6 +377,7 @@ export const importSeasons = asyncHandler(async (req, res) => {
                     if (item) {
                       item.currentQuantity += oldInput.amount;
                       await item.save();
+                      refundedOldInputs.push({ item, amount: oldInput.amount });
                     }
                   }
                 }
@@ -390,6 +400,10 @@ export const importSeasons = asyncHandler(async (req, res) => {
               for (const update of inventoryUpdates) {
                 update.item.currentQuantity += update.deduction;
                 await update.item.save();
+              }
+              for (const refunded of refundedOldInputs) {
+                refunded.item.currentQuantity -= refunded.amount;
+                await refunded.item.save();
               }
               throw err;
             }

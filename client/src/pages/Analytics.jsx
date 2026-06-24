@@ -44,14 +44,12 @@ export default function Analytics() {
     Promise.all([
       api.get('/fields'), 
       api.get('/analytics/insights'), 
-      api.get('/seasons'),
-      api.get('/analytics/smart-weather/advice') // Hava Durumu Tavsiyesi
+      api.get('/seasons')
     ])
-      .then(([f, i, s, w]) => {
+      .then(([f, i, s]) => {
         setFields(f.data.data);
         setInsights(i.data.data);
         setSeasons(s.data.data);
-        if (w.data.success) setWeatherAdvice(w.data.data);
         
         if (f.data.data.length > 0) {
           setFieldId(f.data.data[0]._id);
@@ -71,12 +69,14 @@ export default function Analytics() {
   const fetchAiData = async (id) => {
     setAiLoading(true);
     try {
-      const [aiRes, iotRes] = await Promise.all([
+      const [aiRes, iotRes, wRes] = await Promise.all([
         api.get(`/analytics/ai/predict-yield?fieldId=${id}`),
-        api.get(`/analytics/iot/telemetry?fieldId=${id}`)
+        api.get(`/analytics/iot/telemetry?fieldId=${id}`),
+        api.get(`/analytics/smart-weather/advice?fieldId=${id}`)
       ]);
       if (aiRes.data.success) setAiPrediction(aiRes.data.data);
       if (iotRes.data.success) setIotData(iotRes.data.data);
+      if (wRes.data.success) setWeatherAdvice(wRes.data.data);
     } catch (err) {
       console.error('AI Data error', err);
     } finally {

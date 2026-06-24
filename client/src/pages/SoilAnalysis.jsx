@@ -65,6 +65,17 @@ export default function SoilAnalysis() {
     }
   };
 
+  const getRecommendations = (a) => {
+    const recs = [];
+    if (a.phLevel < 6.5) recs.push('Düşük pH, kireçleme önerilir.');
+    if (a.phLevel > 7.5) recs.push('Yüksek pH, kükürt önerilir.');
+    if (a.nitrogen && a.nitrogen < 15) recs.push('Düşük Azot, sentetik gübreleme önerilir.');
+    if (a.phosphorus && a.phosphorus < 10) recs.push('Düşük Fosfor, DAP/TSP gübresi önerisi.');
+    if (a.potassium && a.potassium < 10) recs.push('Düşük Potasyum, sülfat-potas önerisi.');
+    if (a.organicMatter && a.organicMatter < 2.0) recs.push('Düşük organik madde, kompost/ahır gübresi önerilir.');
+    return recs.length > 0 ? recs.join(' ') : 'İdeal Değerler';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -139,6 +150,7 @@ export default function SoilAnalysis() {
                   <th className="pb-3 pr-4">pH</th>
                   <th className="pb-3 pr-4">N-P-K</th>
                   <th className="pb-3 pr-4">Organik Madde</th>
+                  <th className="pb-3 pr-4">Öneriler / Uyarılar</th>
                   <th className="pb-3 pr-4">Notlar</th>
                   <th className="pb-3">İşlem</th>
                 </tr>
@@ -153,6 +165,9 @@ export default function SoilAnalysis() {
                       {a.nitrogen || '-'} / {a.phosphorus || '-'} / {a.potassium || '-'}
                     </td>
                     <td className="py-3 pr-4">{a.organicMatter ? `${a.organicMatter}%` : '-'}</td>
+                    <td className="py-3 pr-4 text-sm text-yellow-700 font-medium max-w-[200px]">
+                      {getRecommendations(a)}
+                    </td>
                     <td className="py-3 pr-4 text-xs text-earth-500 truncate max-w-[150px]">{a.notes}</td>
                     <td className="py-3">
                       <button onClick={() => handleDelete(a._id)} className="text-red-500 hover:text-red-700 transition">Sil</button>

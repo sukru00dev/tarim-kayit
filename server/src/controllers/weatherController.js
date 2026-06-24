@@ -42,18 +42,28 @@ export const getFieldWeather = asyncHandler(async (req, res) => {
       const maxWind = today.windspeed_10m_max[0];
       const precip = today.precipitation_sum[0];
 
-      if (minTemp <= 3) {
-        alerts.push({ type: 'danger', message: '❄️ Zirai Don Tehlikesi! Gece sıcaklık ' + minTemp + '°C civarına düşecek.' });
+      let frostThreshold = 3;
+      const crop = (field.cropType || '').toLowerCase();
+      if (['domates', 'biber', 'patlıcan', 'pamuk', 'karpuz', 'kavun'].some(c => crop.includes(c))) {
+        frostThreshold = 5;
+      } else if (['buğday', 'arpa', 'yulaf', 'çavdar', 'şeker pancarı'].some(c => crop.includes(c))) {
+        frostThreshold = -2;
+      } else if (['mısır', 'ayçiçeği', 'soya'].some(c => crop.includes(c))) {
+        frostThreshold = 2;
+      }
+
+      if (minTemp <= frostThreshold) {
+        alerts.push({ type: 'danger', message: `❄️ ${field.cropType || 'Mahsul'} için Don Tehlikesi! Gece sıcaklık ${minTemp}°C civarına düşecek (Kritik: ${frostThreshold}°C).` });
       }
       
       if (maxWind > 20) {
-        alerts.push({ type: 'warning', message: '💨 Şiddetli Rüzgar! (' + maxWind + ' km/s) Bugün ilaçlama yapmanız önerilmez.' });
+        alerts.push({ type: 'warning', message: '💨 Şiddetli Rüzgar! (' + maxWind + ' km/s) İlaçlama yapılması (sürüklenme riski nedeniyle) tavsiye edilmez.' });
       }
 
       if (precip > 5) {
-        alerts.push({ type: 'info', message: '🌧️ Yağış Bekleniyor (' + precip + ' mm). Sulamayı erteleyebilirsiniz.' });
+        alerts.push({ type: 'info', message: `🌧️ Yağış Bekleniyor (${precip} mm). Yaprak gübresi veya ilaçlama yaparsanız yıkanma riski yüksektir, ertelemeniz önerilir.` });
       } else if (precip === 0 && data.current_weather.temperature > 30) {
-        alerts.push({ type: 'warning', message: '☀️ Aşırı Sıcak ve Kurak! Sulama yapmanız bitki stresini azaltacaktır.' });
+        alerts.push({ type: 'warning', message: '☀️ Aşırı Sıcak ve Kuraklık Riski! Kritik gelişim evresindeyseniz sulama yapmanız bitki stresini azaltacaktır.' });
       }
     }
 

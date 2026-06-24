@@ -34,6 +34,10 @@ export default function Dashboard() {
         setData(dash.data.data);
         setInsights(ins.data.data.flatMap((f) => f.insights.slice(0, 2)));
       })
+      .catch((err) => {
+        console.error('Veri çekme hatası:', err);
+        // data null kalacak, boş ekran veya hata ui gösterilecek
+      })
       .finally(() => setLoading(false));
   }, []);
 

@@ -10,7 +10,8 @@ export const getAnalyses = asyncHandler(async (req, res) => {
   }
   const analyses = await SoilAnalysis.find(filter)
     .populate('fieldId', 'name cropType areaDecare')
-    .sort({ analysisDate: -1 });
+    .sort({ analysisDate: -1 })
+    .lean();
   
   res.json({ success: true, data: analyses });
 });

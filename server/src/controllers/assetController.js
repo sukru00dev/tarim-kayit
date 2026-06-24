@@ -57,10 +57,28 @@ export const updateAsset = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, error: 'Erişim engellendi.' });
   }
 
-  const updatedAsset = await Asset.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const { 
+    name, status, purchasePrice, purchaseYear, usefulLifeYears, salvageValue,
+    category, unit, currentQuantity, unitPrice, areaDecare, cropType, polygon, notes 
+  } = req.body;
+
+  if (name !== undefined) asset.name = name;
+  if (status !== undefined) asset.status = status;
+  if (purchasePrice !== undefined) asset.purchasePrice = Number(purchasePrice) || 0;
+  if (purchaseYear !== undefined) asset.purchaseYear = Number(purchaseYear) || 0;
+  if (usefulLifeYears !== undefined) asset.usefulLifeYears = Number(usefulLifeYears) || 0;
+  if (salvageValue !== undefined) asset.salvageValue = Number(salvageValue) || 0;
+  if (category !== undefined) asset.category = category;
+  if (unit !== undefined) asset.unit = unit;
+  if (currentQuantity !== undefined) asset.currentQuantity = Number(currentQuantity) || 0;
+  if (unitPrice !== undefined) asset.unitPrice = Number(unitPrice) || 0;
+  if (areaDecare !== undefined) asset.areaDecare = Number(areaDecare) || 0;
+  if (cropType !== undefined) asset.cropType = cropType;
+  if (polygon !== undefined) asset.polygon = polygon;
+  if (notes !== undefined) asset.notes = notes;
+
+  await asset.save();
+  const updatedAsset = asset;
 
   res.json({ success: true, data: updatedAsset });
 });

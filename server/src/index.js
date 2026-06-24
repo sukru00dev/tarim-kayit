@@ -51,6 +51,10 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/gov', govRoutes); // Yeni Devlet/Kurum Entegrasyonu Rotaları
 
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ success: false, error: 'Endpoint bulunamadı' });
+});
+
 app.use(errorHandler);
 
 import path from 'path';

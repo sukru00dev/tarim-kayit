@@ -25,7 +25,7 @@ export const listFields = asyncHandler(async (req, res) => {
     filter.userId = req.user._id;
   }
   
-  const assets = await Asset.find(filter).sort({ createdAt: -1 });
+  const assets = await Asset.find(filter).sort({ createdAt: -1 }).lean();
   const fields = assets.map(mapAssetToField);
   
   res.json({ success: true, data: fields });
