@@ -42,7 +42,15 @@ export default function Assets() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post('/assets', formData);
+      await apiClient.post('/assets', {
+        name: formData.assetName,
+        type: 'Equipment',
+        purchasePrice: formData.purchasePrice,
+        purchaseYear: formData.purchaseYear,
+        usefulLifeYears: formData.usefulLifeYears,
+        salvageValue: formData.salvageValue,
+        notes: formData.notes
+      });
       setShowForm(false);
       setFormData({
         assetName: '',
@@ -142,11 +150,11 @@ export default function Assets() {
               ) : (
                 assets.map((asset) => (
                   <tr key={asset.id} className="hover:bg-earth-50/50">
-                    <td className="px-6 py-4 font-medium text-earth-900">{asset.assetName}</td>
-                    <td className="px-6 py-4">{asset.purchasePrice.toLocaleString('tr-TR')} ₺</td>
+                    <td className="px-6 py-4 font-medium text-earth-900">{asset.assetName || asset.name}</td>
+                    <td className="px-6 py-4">{(asset.purchasePrice || 0).toLocaleString('tr-TR')} ₺</td>
                     <td className="px-6 py-4">{asset.purchaseYear} <span className="text-earth-400">({asset.usefulLifeYears} Yıl)</span></td>
                     <td className="px-6 py-4 font-bold text-primary-700">
-                      {asset.annualDepreciation.toLocaleString('tr-TR')} ₺
+                      {(asset.annualDepreciation || 0).toLocaleString('tr-TR')} ₺
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => handleDelete(asset.id)} className="text-red-500 hover:text-red-700">Sil</button>
