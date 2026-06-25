@@ -153,7 +153,37 @@ export const updateSeason = asyncHandler(async (req, res) => {
   const { year, seasonPeriod, inputs, notes, harvestQuantity, unitSalePrice } = req.body;
   
   if (inputs) {
-    // 1. Eski inputları iade et
+    // 1. Yeni inputları kontrol et ve düşülecek miktarları haritala (henüz kaydetme)
+    const inventoryUpdates = [];
+    const deductionMap = {};
+    for (const input of inputs) {
+      if (input.inventoryItemId) {
+        deductionMap[input.inventoryItemId] = (deductionMap[input.inventoryItemId] || 0) + (Number(input.amount) || 0);
+      }
+    }
+    
+    // Geçici refundMap oluşturarak stokların yetip yetmeyeceğini kontrol et
+    const refundMap = {};
+    for (const oldInput of season.inputs) {
+      if (oldInput.inventoryItemId) {
+        refundMap[oldInput.inventoryItemId] = (refundMap[oldInput.inventoryItemId] || 0) + (Number(oldInput.amount) || 0);
+      }
+    }
+
+    for (const [itemId, totalDeduction] of Object.entries(deductionMap)) {
+      const item = await Asset.findById(itemId);
+      if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
+        return res.status(404).json({ success: false, error: `Seçili depo ürünü bulunamadı` });
+      }
+      const refundAmount = refundMap[itemId] || 0;
+      if ((item.currentQuantity + refundAmount) < totalDeduction) {
+        return res.status(400).json({ success: false, error: `Depoda yeterli ${item.name} yok. (İstenen: ${totalDeduction}, Kullanılabilir: ${item.currentQuantity + refundAmount} ${item.unit})` });
+      }
+      inventoryUpdates.push({ item, deduction: totalDeduction });
+    }
+
+    // Doğrulamalar geçtiğine göre veri tabanını güncelleyebiliriz
+    // 2. Eski inputları iade et
     for (const oldInput of season.inputs) {
       if (oldInput.inventoryItemId) {
         const item = await Asset.findById(oldInput.inventoryItemId);
@@ -164,28 +194,11 @@ export const updateSeason = asyncHandler(async (req, res) => {
       }
     }
 
-    // 2. Yeni inputları kontrol et ve düş
-    const inventoryUpdates = [];
-    const deductionMap = {};
-    for (const input of inputs) {
-      if (input.inventoryItemId) {
-        deductionMap[input.inventoryItemId] = (deductionMap[input.inventoryItemId] || 0) + (Number(input.amount) || 0);
-      }
-    }
-    for (const [itemId, totalDeduction] of Object.entries(deductionMap)) {
-      const item = await Asset.findById(itemId);
-      if (!item || (item.type !== 'Inventory' && item.type !== 'Material')) {
-        return res.status(404).json({ success: false, error: `Seçili depo ürünü bulunamadı` });
-      }
-      if (item.currentQuantity < totalDeduction) {
-        return res.status(400).json({ success: false, error: `Depoda yeterli ${item.name} yok. (İstenen: ${totalDeduction}, Kalan: ${item.currentQuantity} ${item.unit})` });
-      }
-      inventoryUpdates.push({ item, deduction: totalDeduction });
-    }
-
+    // 3. Yeni inputları düş
     for (const update of inventoryUpdates) {
-      update.item.currentQuantity -= update.deduction;
-      await update.item.save();
+      const itemToUpdate = await Asset.findById(update.item._id);
+      itemToUpdate.currentQuantity -= update.deduction;
+      await itemToUpdate.save();
     }
 
     const { inputs: normalizedInputs, totalCost, costPerDecare } = calculateSeasonTotals(

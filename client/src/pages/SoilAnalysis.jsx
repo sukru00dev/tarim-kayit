@@ -158,7 +158,7 @@ export default function SoilAnalysis() {
               <tbody>
                 {analyses.map((a) => (
                   <tr key={a._id} className="border-b border-earth-50 hover:bg-earth-50/50">
-                    <td className="py-3 pr-4 font-medium text-earth-900">{a.fieldId?.fieldName}</td>
+                    <td className="py-3 pr-4 font-medium text-earth-900">{a.fieldId?.name || 'Bilinmiyor'}</td>
                     <td className="py-3 pr-4">{new Date(a.analysisDate).toLocaleDateString('tr-TR')}</td>
                     <td className="py-3 pr-4 text-primary-700 font-semibold">{a.phLevel}</td>
                     <td className="py-3 pr-4">

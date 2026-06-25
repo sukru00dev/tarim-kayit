@@ -4,7 +4,7 @@ const soilAnalysisSchema = new mongoose.Schema(
   {
     fieldId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Field',
+      ref: 'Asset',
       required: true,
       index: true,
     },

@@ -10,7 +10,7 @@ const taskSchema = new mongoose.Schema(
     },
     targetModel: {
       type: String,
-      enum: ['Field', 'Asset', 'InventoryItem', 'SeasonRecord'],
+      enum: ['Asset'],
       required: false,
     },
     targetId: {

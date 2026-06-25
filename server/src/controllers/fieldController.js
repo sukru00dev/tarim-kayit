@@ -82,7 +82,7 @@ export const deleteField = asyncHandler(async (req, res) => {
 
   // Tarlaya ait sezonlar (Asset type: PlantingSeason) silinir
   await Asset.deleteMany({ fieldId: field._id, type: 'PlantingSeason' });
-  await Task.deleteMany({ targetModel: 'Field', targetId: field._id });
+  await Task.deleteMany({ targetId: field._id });
   if (SoilAnalysis) await SoilAnalysis.deleteMany({ fieldId: field._id });
 
   await field.deleteOne();
